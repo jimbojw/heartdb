@@ -17,11 +17,17 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@eslint/js": "9.20.0",
+    "@types/pouchdb": "6.4.2",
+    "@types/pouchdb-find": "7.3.3",
     "eslint": "9.20.1",
     "eslint-config-prettier": "10.0.1",
     "eslint-plugin-prettier": "5.2.3",
     "prettier": "3.5.1",
     "typescript": "5.7.3",
     "typescript-eslint": "8.24.0"
+  },
+  "dependencies": {
+    "pouchdb": "9.0.0",
+    "pouchdb-find": "9.0.0"
   }
 }
