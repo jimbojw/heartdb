@@ -21,7 +21,6 @@ export default tseslint.config(
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,
-  // @ts-expect-error Mismatched rules type from prettier config.
   eslintConfigPrettier,
   {
     plugins: {

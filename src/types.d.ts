@@ -1,6 +1,9 @@
 /**
  * @license SPDX-License-Identifier: Apache-2.0
  */
+/**
+ * @fileoverview Type definitions.
+ */
 
 /**
  * An Existing document has an `_id` string field, a `_rev` string field and may
