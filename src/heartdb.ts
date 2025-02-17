@@ -12,6 +12,10 @@ import PouchDBFindPlugin from "pouchdb-find";
 // Internal modules.
 import { Document } from "./types";
 
+// Register pouchdb-find plugin. Note that PouchDB's static `plugin()` method
+// will copy properites to the PouchDB prototype object (monkey patching). So it
+// is not necessary for users of HeartDB to provide previously find-plugged
+// instances.
 PouchDB.plugin(PouchDBFindPlugin);
 
 /**
@@ -31,6 +35,11 @@ export class HeartDB<DocType extends Document = Document> {
   readonly db: PouchDB.Database<DocType>;
 
   /**
+   * Channel name used for inter-instance communication.
+   */
+  readonly channelName: string;
+
+  /**
    * Broadcast channel for incoming messages.
    */
   readonly inbox: BroadcastChannel;
@@ -41,24 +50,60 @@ export class HeartDB<DocType extends Document = Document> {
   readonly outbox: BroadcastChannel;
 
   /**
-   * @param dbOrName PouchDB database instance or name to use.
+   * Bound listener function registered with the inbox channel.
    */
-  constructor(dbOrName: PouchDB.Database<DocType> | string) {
-    this.db = typeof dbOrName === "string" ? new PouchDB(dbOrName) : dbOrName;
+  private messageEventListener = this.handleInboxMessage.bind(this);
+
+  /**
+   * PouchDB changes object.
+   */
+  readonly changes: PouchDB.Core.Changes<DocType>;
+
+  /**
+   * Listener function for change events from wrapped PouchDB instance.
+   */
+  private changeEventListener: (
+    change: PouchDB.Core.ChangesResponseChange<DocType>,
+  ) => void;
+
+  /**
+   * @param db PouchDB instance to wrap.
+   */
+  constructor(db: PouchDB.Database<DocType>) {
+    this.db = db;
+
+    this.channelName = `${BC_PREFIX}${this.db.name}`;
 
     // Handle all incoming change messages.
-    this.inbox = new BroadcastChannel(`${BC_PREFIX}${this.db.name}`);
-    this.inbox.addEventListener("message", (event) => {
-      this.handleInboxMessage(event);
+    this.inbox = new BroadcastChannel(this.channelName);
+    this.inbox.addEventListener("message", this.messageEventListener);
+
+    // Setup PouchDB changes feed.
+    this.changes = this.db.changes({
+      since: "now",
+      live: true,
+      include_docs: true,
     });
 
-    // Reflect database changes to outbox channel.
-    this.outbox = new BroadcastChannel(`${BC_PREFIX}${this.db.name}`);
-    this.db
-      .changes({ since: "now", live: true, include_docs: true })
-      .on("change", (change) => {
-        this.outbox.postMessage(change);
-      });
+    // Reflect PouchDB changes to outbox channel.
+    this.outbox = new BroadcastChannel(this.channelName);
+    this.changeEventListener = (change) => {
+      this.outbox.postMessage(change);
+    };
+    this.changes.on("change", this.changeEventListener);
+  }
+
+  /**
+   * Close channels and PouchDB connections.
+   */
+  close() {
+    this.inbox.removeEventListener("message", this.messageEventListener);
+    this.inbox.close();
+
+    this.changes.removeListener("change", this.changeEventListener);
+    this.changes.cancel();
+
+    this.outbox.close();
   }
 
   /**
