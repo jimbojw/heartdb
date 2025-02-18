@@ -85,6 +85,14 @@ export class Subscription<
   }
 
   /**
+   * Set the query to follow. This is an asynchronous function which will return
+   * when all existing matching docs have been added to the result set. After
+   * return changed docs will trigger additional events.
+   *
+   * Note that PouchDB follows CouchDB's default limit of 25 results per query.
+   * So if your query should return more than 25 documenets, and you don't
+   * specify a limit, then it will take multiple requsests to fetch all the
+   * documents.
    * @param query Query to find and follow.
    */
   async setQuery(query?: PouchDB.Find.FindRequest<SubscriptionDocType>) {
@@ -101,20 +109,35 @@ export class Subscription<
 
     // If the query has been unset, then replace all docs with none.
     if (!query) {
-      this.replaceDocs([]);
+      this.processDocs([], true);
       return;
     }
 
-    // Fetch initial results.
-    const results = await this.heartDb.pouchDb.find(query);
+    let done = false;
+    let requestCount = 0;
+    let skip = query.skip ?? 0;
+    while (!done) {
+      requestCount++;
+      const results = await this.heartDb.pouchDb.find({ ...query, skip });
 
-    if (this.query !== query) {
-      // Preempted by another call.
-      return;
+      if (this.query !== query) {
+        // Preempted by another call.
+        return;
+      }
+
+      const docs = results.docs as (SubscriptionDocType & Existing)[];
+
+      skip += docs.length;
+
+      // Process this round of docs, replacing if it's the first round.
+      this.processDocs(docs, requestCount === 1);
+
+      // We're done when there were no docs returned, or fewer than the limit.
+      if (!docs.length || (query.limit && docs.length < query.limit)) {
+        done = true;
+        break;
+      }
     }
-
-    // Replace any existing docs with returned results.
-    this.replaceDocs(results.docs as (SubscriptionDocType & Existing)[]);
 
     // Subscribe to all HeartDB changes to perform updates.
     this.disconnect = this.heartDb.onChange(this.createQueryListener(query));
@@ -214,9 +237,13 @@ export class Subscription<
 
   /**
    * Replace the current set of docs with the provided replacement array.
-   * @param replacementDocs List of docs to replace the current set.
+   * @param incomingDocs List of docs to replace the current set.
+   * @param replace Whether to replace the current set of docs.
    */
-  replaceDocs(replacementDocs: (SubscriptionDocType & Existing)[]) {
+  processDocs(
+    incomingDocs: (SubscriptionDocType & Existing)[],
+    replace: boolean,
+  ) {
     const enterDocs: Docs<SubscriptionDocType> = {};
     let enterCount = 0;
 
@@ -227,10 +254,9 @@ export class Subscription<
     let exitCount = 0;
 
     const unchangedDocs: Docs<SubscriptionDocType> = {};
-    let unchangedCount = 0;
 
     // Categorize incoming documents as enter/update/exit/unchanged.
-    for (const doc of replacementDocs) {
+    for (const doc of incomingDocs) {
       if (!(doc._id in this.docs)) {
         // Ignore deleted documents that we don't already know about.
         if (doc._deleted) {
@@ -259,12 +285,11 @@ export class Subscription<
 
       // Retained, unchanged documents should be added to the unchanged set.
       unchangedDocs[doc._id] = doc;
-      unchangedCount++;
     }
 
-    // Any known documents that are not update/unchanged should be added to the
-    // exit set for removal.
-    if (updateCount || unchangedCount) {
+    // If we're performing a replacement, then any known documents that are not
+    // update/unchanged should be added to the exit set for removal.
+    if (replace) {
       for (const id in this.docs) {
         if (!(id in updateDocs) && !(id in unchangedDocs)) {
           exitDocs[id] = this.docs[id];
