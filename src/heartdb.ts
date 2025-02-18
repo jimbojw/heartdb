@@ -10,6 +10,7 @@ import PouchDB from "pouchdb";
 import PouchDBFindPlugin from "pouchdb-find";
 
 // Internal modules.
+import { ChangeEvent, ChangeEventListener } from "./change-event";
 import { Document } from "./types";
 
 // Register pouchdb-find plugin. Note that PouchDB's static `plugin()` method
@@ -35,24 +36,27 @@ export class HeartDB<DocType extends Document = Document> {
   readonly db: PouchDB.Database<DocType>;
 
   /**
+   * Event emitter for change events.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
+   */
+  readonly eventTarget: EventTarget;
+
+  /**
    * Channel name used for inter-instance communication.
    */
   readonly channelName: string;
 
   /**
-   * Broadcast channel for incoming messages.
+   * Broadcast channel for communicating change events across contexts.
    */
-  readonly inbox: BroadcastChannel;
+  readonly channel: BroadcastChannel;
 
   /**
-   * Broadcast channel for outgoing messages.
+   * Bound listener for handling incoming messages from the channel.
    */
-  readonly outbox: BroadcastChannel;
-
-  /**
-   * Bound listener function registered with the inbox channel.
-   */
-  private messageEventListener = this.handleInboxMessage.bind(this);
+  private channelEventListener: (
+    messageEvent: MessageEvent<PouchDB.Core.ChangesResponseChange<DocType>>,
+  ) => void;
 
   /**
    * PouchDB changes object.
@@ -62,21 +66,31 @@ export class HeartDB<DocType extends Document = Document> {
   /**
    * Listener function for change events from wrapped PouchDB instance.
    */
-  private changeEventListener: (
+  private dbChangeEventListener: (
     change: PouchDB.Core.ChangesResponseChange<DocType>,
   ) => void;
+
+  /**
+   * Set of change event listeners registered with `onChange()`.
+   */
+  private readonly changeEventListeners = new Set<
+    ChangeEventListener<DocType>
+  >();
 
   /**
    * @param db PouchDB instance to wrap.
    */
   constructor(db: PouchDB.Database<DocType>) {
     this.db = db;
-
+    this.eventTarget = new EventTarget();
     this.channelName = `${BC_PREFIX}${this.db.name}`;
 
     // Handle all incoming change messages.
-    this.inbox = new BroadcastChannel(this.channelName);
-    this.inbox.addEventListener("message", this.messageEventListener);
+    this.channel = new BroadcastChannel(this.channelName);
+    this.channelEventListener = (messageEvent) => {
+      this.eventTarget.dispatchEvent(new ChangeEvent(messageEvent.data));
+    };
+    this.channel.onmessage = this.channelEventListener;
 
     // Setup PouchDB changes feed.
     this.changes = this.db.changes({
@@ -85,37 +99,44 @@ export class HeartDB<DocType extends Document = Document> {
       include_docs: true,
     });
 
-    // Reflect PouchDB changes to outbox channel.
-    this.outbox = new BroadcastChannel(this.channelName);
-    this.changeEventListener = (change) => {
-      this.outbox.postMessage(change);
+    // Reflect PouchDB changes to channel, and emit.
+    this.dbChangeEventListener = (change) => {
+      this.channel.postMessage(change);
+      this.eventTarget.dispatchEvent(new ChangeEvent(change));
     };
-    this.changes.on("change", this.changeEventListener);
+    this.changes.on("change", this.dbChangeEventListener);
   }
 
   /**
-   * Close channels and PouchDB connections.
+   * Close all connections and remove all listeners.
    */
   close() {
-    this.inbox.removeEventListener("message", this.messageEventListener);
-    this.inbox.close();
+    this.channel.onmessage = null;
+    this.channel.close();
 
-    this.changes.removeListener("change", this.changeEventListener);
+    this.changes.removeListener("change", this.dbChangeEventListener);
     this.changes.cancel();
 
-    this.outbox.close();
+    for (const listener of this.changeEventListeners) {
+      this.eventTarget.removeEventListener("change", listener as EventListener);
+      this.changeEventListeners.delete(listener);
+    }
   }
 
   /**
-   * Handle any incoming message from the inbox channel. This may be a local
-   * change from the wrapped PouchDB instance, or it could be a change from
-   * another execution context (tab, frame, worker).
-   * @param changeEvent Incoming change event.
+   * Subscsribe to changes.
+   * @param listener Callback function to invoke on change.
+   * @return Function to call to unsubscribe.
    */
-  handleInboxMessage(
-    changeEvent: MessageEvent<PouchDB.Core.ChangesResponseChange<DocType>>,
-  ): void {
-    // TODO(jimbo): Inform subscribers.
-    console.log("Inbox message", changeEvent);
+  onChange(listener: (change: ChangeEvent<DocType>) => void): () => void {
+    if (this.changeEventListeners.has(listener)) {
+      throw new Error("Listener already registered.");
+    }
+    this.changeEventListeners.add(listener);
+    this.eventTarget.addEventListener("change", listener as EventListener);
+    return () => {
+      this.eventTarget.removeEventListener("change", listener as EventListener);
+      this.changeEventListeners.delete(listener);
+    };
   }
 }
