@@ -11,7 +11,7 @@ import PouchDB from "pouchdb-node";
 
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
-import { ChangeEvent } from "./change-event";
+import { ChangeEvent, ChangesResponseChange } from "./events";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
@@ -30,19 +30,19 @@ describe("HeartDB", () => {
   });
 
   describe("channel", () => {
-    let heartdb: HeartDB;
+    let heartDb: HeartDB;
 
     beforeEach(() => {
-      heartdb = new HeartDB(new PouchDB("TEST_DB", { adapter: "memory" }));
+      heartDb = new HeartDB(new PouchDB("TEST_DB", { adapter: "memory" }));
     });
 
     afterEach(() => {
-      heartdb.close();
+      heartDb.close();
     });
 
     it("should be defined", () => {
-      expect(heartdb.channelName).toBe("heartdb_TEST_DB");
-      expect(heartdb.channel).toBeDefined();
+      expect(heartDb.channelName).toBe("heartdb_TEST_DB");
+      expect(heartDb.channel).toBeDefined();
     });
 
     it("should emit changes incoming on the channel", (done) => {
@@ -52,24 +52,24 @@ describe("HeartDB", () => {
         testField: "test value",
       };
 
-      const testChange: PouchDB.Core.ChangesResponseChange<typeof testDoc> = {
+      const testChange: ChangesResponseChange<typeof testDoc> = {
         id: testDoc._id,
         seq: 1,
         changes: [{ rev: testDoc._rev }],
         doc: testDoc,
       };
 
-      const testChannel = new BroadcastChannel(heartdb.channelName);
+      const testChannel = new BroadcastChannel(heartDb.channelName);
 
       function handleChangeEvent(event: Event) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
         expect(changeEvent.detail.doc?.testField).toEqual("test value");
-        heartdb.eventTarget.removeEventListener("change", handleChangeEvent);
+        heartDb.eventTarget.removeEventListener("change", handleChangeEvent);
         testChannel.close();
         done();
       }
 
-      heartdb.eventTarget.addEventListener("change", handleChangeEvent);
+      heartDb.eventTarget.addEventListener("change", handleChangeEvent);
 
       testChannel.postMessage(testChange);
     });
@@ -93,7 +93,7 @@ describe("HeartDB", () => {
         testField: "test value",
       };
 
-      const testChange: PouchDB.Core.ChangesResponseChange<typeof testDoc> = {
+      const testChange: ChangesResponseChange<typeof testDoc> = {
         id: testDoc._id,
         seq: 1,
         changes: [{ rev: testDoc._rev }],

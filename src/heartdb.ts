@@ -10,7 +10,11 @@ import PouchDB from "pouchdb";
 import PouchDBFindPlugin from "pouchdb-find";
 
 // Internal modules.
-import { ChangeEvent, ChangeEventListener } from "./change-event";
+import {
+  ChangeEvent,
+  ChangeEventListener,
+  ChangesResponseChange,
+} from "./events";
 import { Document } from "./types";
 
 // Register pouchdb-find plugin. Note that PouchDB's static `plugin()` method
@@ -55,7 +59,7 @@ export class HeartDB<DocType extends Document = Document> {
    * Bound listener for handling incoming messages from the channel.
    */
   private channelEventListener: (
-    messageEvent: MessageEvent<PouchDB.Core.ChangesResponseChange<DocType>>,
+    messageEvent: MessageEvent<ChangesResponseChange<DocType>>,
   ) => void;
 
   /**
@@ -67,7 +71,7 @@ export class HeartDB<DocType extends Document = Document> {
    * Listener function for change events from wrapped PouchDB instance.
    */
   private dbChangeEventListener: (
-    change: PouchDB.Core.ChangesResponseChange<DocType>,
+    changeResponse: ChangesResponseChange<DocType>,
   ) => void;
 
   /**
@@ -104,7 +108,12 @@ export class HeartDB<DocType extends Document = Document> {
       this.channel.postMessage(change);
       this.eventTarget.dispatchEvent(new ChangeEvent(change));
     };
-    this.changes.on("change", this.dbChangeEventListener);
+    this.changes.on(
+      "change",
+      this.dbChangeEventListener as (
+        changeResponse: PouchDB.Core.ChangesResponseChange<DocType>,
+      ) => void,
+    );
   }
 
   /**
@@ -128,7 +137,7 @@ export class HeartDB<DocType extends Document = Document> {
    * @param listener Callback function to invoke on change.
    * @return Function to call to unsubscribe.
    */
-  onChange(listener: (change: ChangeEvent<DocType>) => void): () => void {
+  onChange(listener: ChangeEventListener<DocType>): () => void {
     if (this.changeEventListeners.has(listener)) {
       throw new Error("Listener already registered.");
     }

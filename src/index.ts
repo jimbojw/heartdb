@@ -6,5 +6,6 @@
  */
 
 import { HeartDB } from "./heartdb";
+import { Subscription } from "./subscription";
 
-export { HeartDB };
+export { HeartDB, Subscription };
