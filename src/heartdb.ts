@@ -33,7 +33,7 @@ export class HeartDB<DocType extends Document = Document> {
   /**
    * PouchDB database instance wrapped by HeartDB.
    */
-  readonly db: PouchDB.Database<DocType>;
+  readonly pouchDb: PouchDB.Database<DocType>;
 
   /**
    * Event emitter for change events.
@@ -78,12 +78,12 @@ export class HeartDB<DocType extends Document = Document> {
   >();
 
   /**
-   * @param db PouchDB instance to wrap.
+   * @param pouchDb PouchDB instance to wrap.
    */
-  constructor(db: PouchDB.Database<DocType>) {
-    this.db = db;
+  constructor(pouchDb: PouchDB.Database<DocType>) {
+    this.pouchDb = pouchDb;
     this.eventTarget = new EventTarget();
-    this.channelName = `${BC_PREFIX}${this.db.name}`;
+    this.channelName = `${BC_PREFIX}${this.pouchDb.name}`;
 
     // Handle all incoming change messages.
     this.channel = new BroadcastChannel(this.channelName);
@@ -93,7 +93,7 @@ export class HeartDB<DocType extends Document = Document> {
     this.channel.onmessage = this.channelEventListener;
 
     // Setup PouchDB changes feed.
-    this.changes = this.db.changes({
+    this.changes = this.pouchDb.changes({
       since: "now",
       live: true,
       include_docs: true,

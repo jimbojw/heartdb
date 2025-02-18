@@ -2,7 +2,7 @@
  * @license SPDX-License-Identifier: Apache-2.0
  */
 /**
- * @fileoverview Jasmine tests for HeartDB.
+ * @fileoverview Jest tests for HeartDB.
  */
 
 // External dependencies.
