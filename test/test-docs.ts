@@ -18,7 +18,7 @@ export interface TestDoc extends Document {
 /**
  * Set of 100 initial test documents.
  */
-export const TEST_DOCS_0100: TestDoc[] = new Array(100)
+export const TEST_DOCS_0100: (TestDoc & PouchDB.Core.IdMeta)[] = new Array(100)
   .fill(null)
   .map((_, index) => ({
     _id: `TEST_DOC_${`${index}`.padStart(4, "0")}`,

@@ -26,7 +26,7 @@ PouchDB.plugin(PouchDBFindPlugin);
 /**
  * Prefix string for broadcast channel names.
  */
-const BC_PREFIX = "heartdb_";
+const BROADTAST_CHANNEL_NAME_PREFIX = "heartdb_";
 
 /**
  * HeartDB is a subscription-based, type-safe wrapper around PouchDB (with
@@ -87,7 +87,7 @@ export class HeartDB<DocType extends Document = Document> {
   constructor(pouchDb: PouchDB.Database<DocType>) {
     this.pouchDb = pouchDb;
     this.eventTarget = new EventTarget();
-    this.channelName = `${BC_PREFIX}${this.pouchDb.name}`;
+    this.channelName = `${BROADTAST_CHANNEL_NAME_PREFIX}${this.pouchDb.name}`;
 
     // Handle all incoming change messages.
     this.channel = new BroadcastChannel(this.channelName);
@@ -147,5 +147,26 @@ export class HeartDB<DocType extends Document = Document> {
       this.eventTarget.removeEventListener("change", listener as EventListener);
       this.changeEventListeners.delete(listener);
     };
+  }
+
+  /**
+   * Put a document into the database, but instead of returning the PouchDB
+   * response, listen for the associated change and return that instead. This
+   * ensures that the document has been fully settled, and subscribers notified.
+   * @param doc Document to put.
+   * @returns Promise that resolves with the change event.
+   */
+  put(
+    doc: DocType & PouchDB.Core.IdMeta,
+  ): Promise<ChangesResponseChange<DocType>> {
+    return new Promise<ChangesResponseChange<DocType>>((resolve, reject) => {
+      const disconnect = this.onChange((changeEvent) => {
+        if (changeEvent.detail.id === doc._id) {
+          resolve(changeEvent.detail);
+          disconnect();
+        }
+      });
+      this.pouchDb.put(doc).catch(reject);
+    });
   }
 }

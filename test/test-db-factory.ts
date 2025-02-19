@@ -24,7 +24,7 @@ export interface TestDbFactoryParams<DocType extends Document = Document> {
   /**
    * Optional initial documents to insert into the database at creation.
    */
-  initialDocs?: DocType[];
+  initialDocs?: (DocType & PouchDB.Core.IdMeta)[];
 
   /**
    * Optional prefix for the database name.

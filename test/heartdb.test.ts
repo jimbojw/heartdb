@@ -77,9 +77,13 @@ describe("HeartDB", () => {
 
   describe("onChange()", () => {
     let heartdb: HeartDB;
+    let testCount = 0;
 
     beforeEach(() => {
-      heartdb = new HeartDB(new PouchDB("TEST_DB", { adapter: "memory" }));
+      testCount++;
+      heartdb = new HeartDB(
+        new PouchDB(`TEST_onChange_${testCount}`, { adapter: "memory" }),
+      );
     });
 
     afterEach(() => {
@@ -116,6 +120,51 @@ describe("HeartDB", () => {
       disconnect = heartdb.onChange(handleChangeEvent);
 
       testChannel.postMessage(testChange);
+    });
+  });
+
+  describe("put()", () => {
+    it("should resolve with the change event on insertion", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_put_insert", { adapter: "memory" }),
+      );
+
+      const initialTestDoc = {
+        _id: "TEST_ID",
+        testField: "test value",
+      };
+
+      const initialChange = await heartDb.put(initialTestDoc);
+
+      expect(initialChange.id).toBe(initialTestDoc._id);
+      expect(initialChange.doc._rev).toMatch(/^1-/);
+
+      heartDb.close();
+    });
+
+    it("should resolve with the change event on update", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_put_update", { adapter: "memory" }),
+      );
+
+      const initialTestDoc = {
+        _id: "TEST_ID",
+        testField: "test value",
+      };
+
+      const initialChange = await heartDb.put(initialTestDoc);
+
+      const updatedTestDoc = {
+        ...initialChange.doc,
+        testField: "updated value",
+      };
+
+      const updatedChange = await heartDb.put(updatedTestDoc);
+
+      expect(updatedChange.id).toBe(initialTestDoc._id);
+      expect(updatedChange.doc._rev).toMatch(/^2-/);
+
+      heartDb.close();
     });
   });
 });
