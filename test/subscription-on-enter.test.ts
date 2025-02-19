@@ -15,7 +15,10 @@ import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
 describe("Subscription::onEnter()", () => {
-  const testDbFactory = new TestDbFactory({ docs: TEST_DOCS_0100 });
+  const testDbFactory = new TestDbFactory({
+    dbNamePrefix: "TEST_Subscription_onEnter",
+    initialDocs: TEST_DOCS_0100,
+  });
 
   let heartDb: HeartDB<TestDoc>;
 

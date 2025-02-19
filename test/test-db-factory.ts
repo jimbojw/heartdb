@@ -24,7 +24,7 @@ export interface TestDbFactoryParams<DocType extends Document = Document> {
   /**
    * Optional initial documents to insert into the database at creation.
    */
-  docs?: DocType[];
+  initialDocs?: DocType[];
 
   /**
    * Optional prefix for the database name.
@@ -50,7 +50,7 @@ export class TestDbFactory<DocType extends Document = Document> {
     const heartDb = new HeartDB(pouchDb);
 
     // Insert initial documents if any.
-    const initialDocs = this.factoryParams?.docs;
+    const initialDocs = this.factoryParams?.initialDocs;
     if (initialDocs && initialDocs.length) {
       // Monitor HeartDB changes until we've consumed one per test doc.
       const insertedPromise = createPromise<void>();
