@@ -10,8 +10,8 @@ import PouchDBPluginAdapterMemory from "pouchdb-adapter-memory";
 import PouchDB from "pouchdb-node";
 
 // Internal dependencies.
+import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
-import { ChangeEvent, ChangesResponseChange } from "./events";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);

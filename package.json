@@ -5,8 +5,12 @@
   "main": "dist/index.js",
   "type": "module",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/**/*.d.ts"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
     "lint": "eslint",
     "test": "jest"
   },
