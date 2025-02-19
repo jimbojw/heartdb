@@ -5,36 +5,14 @@
  * @fileoverview Jest tests for Subscription.
  */
 
-// External dependencies.
-import PouchDB from "pouchdb";
-import PouchDBPluginAdapterMemory from "pouchdb-adapter-memory";
-
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
-import { Document } from "../src/types";
 
-// Register memory adapter.
-PouchDB.plugin(PouchDBPluginAdapterMemory);
-
-interface TestDoc extends Document {
-  testField: string;
-}
-
-// TODO(jimbo): Swap for p-defer library and fix jest config to work with it.
-function createPromise<ValueType = unknown>(): {
-  promise: Promise<ValueType>;
-  resolve: (value: ValueType) => void;
-  reject: (reason: unknown) => void;
-} {
-  let resolve: (value: ValueType) => void;
-  let reject: (reason: unknown) => void;
-  const promise = new Promise<ValueType>((_resolve, _reject) => {
-    resolve = _resolve;
-    reject = _reject;
-  });
-  return { promise, resolve: resolve!, reject: reject! };
-}
+// Test dependencies.
+import { createPromise } from "./create-promise";
+import { TestDbFactory } from "./test-db-factory";
+import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
 describe("Subscription", () => {
   it("should be a constructor function", () => {
@@ -49,45 +27,12 @@ describe("Subscription", () => {
   });
 
   describe("setQuery", () => {
-    let heartDb: HeartDB<TestDoc>;
-    let testNumber = 0;
+    const testDbFactory = new TestDbFactory({ docs: TEST_DOCS_0100 });
 
-    const TEST_DOCS: TestDoc[] = new Array(100).fill(null).map((_, index) => ({
-      _id: `TEST_DOC_${`${index}`.padStart(4, "0")}`,
-      testField: `test value ${index}`,
-    }));
+    let heartDb: HeartDB<TestDoc>;
 
     beforeEach(async () => {
-      // Create a HeartDB instance with an in-memory PouchDB instance. Then
-      // insert all TEST_DOCS and wait for all of their change notifications.
-      // This ensures that there are no lingering change notifications in the
-      // pipeline before the tests begin.
-
-      // Note: PouchDB's memory adapter seems to be shared by name. So here we
-      // give each PouchDB test database a different name, monotonically
-      // increasing with test number.
-      testNumber++;
-      heartDb = new HeartDB(
-        new PouchDB<TestDoc>(`TEST_DB_${testNumber}`, { adapter: "memory" }),
-      );
-
-      // Monitor HeartDB changes until we've consumed one per test doc.
-      const insertedPromise = createPromise<void>();
-      let docsInserted = 0;
-      const countChange = () => {
-        docsInserted++;
-        if (docsInserted === TEST_DOCS.length) {
-          insertedPromise.resolve();
-        }
-      };
-      const disconnect = heartDb.onChange(countChange);
-
-      // Insert all test docs.
-      await heartDb.pouchDb.bulkDocs(TEST_DOCS);
-
-      // Await all change notifications, then disconnect.
-      await insertedPromise.promise;
-      disconnect();
+      heartDb = await testDbFactory.createDb();
     });
 
     afterEach(() => {
