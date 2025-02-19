@@ -12,6 +12,7 @@ import PouchDB from "pouchdb-node";
 // Internal dependencies.
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
+import { Document } from "../src/types";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
@@ -163,6 +164,28 @@ describe("HeartDB", () => {
 
       expect(updatedChange.id).toBe(initialTestDoc._id);
       expect(updatedChange.doc._rev).toMatch(/^2-/);
+
+      heartDb.close();
+    });
+  });
+
+  describe("post()", () => {
+    it("should resolve with the change event on insertion", async () => {
+      const testDoc = {
+        testField: "UNIQUE TEST VALUE",
+      };
+
+      const heartDb = new HeartDB(
+        new PouchDB<typeof testDoc & Document>("TEST_post_insert", {
+          adapter: "memory",
+        }),
+      );
+
+      const changeEvent = await heartDb.post(testDoc);
+
+      expect(changeEvent.seq).toBe(1);
+      expect(changeEvent.doc._rev).toMatch(/^1-/);
+      expect(changeEvent.doc.testField).toBe("UNIQUE TEST VALUE");
 
       heartDb.close();
     });
