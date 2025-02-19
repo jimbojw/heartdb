@@ -147,7 +147,9 @@ describe("Subscription::onEnter()", () => {
 
     const deferred = createPromise<void>();
 
+    let callCount = 0;
     const disconnect = subscription.onEnter((enterEvent) => {
+      callCount++;
       const docs = enterEvent.detail;
       expect(Object.keys(docs).length).toBe(1);
       deferred.resolve();
@@ -160,12 +162,15 @@ describe("Subscription::onEnter()", () => {
 
     await subscription.setQuery(query);
 
-    heartDb.pouchDb.put({
+    await heartDb.pouchDb.put({
       _id: "TEST_DOC_0101",
       testField: "test value 101",
     });
 
     await deferred.promise;
+
+    expect(callCount).toBe(1);
+
     disconnect();
   });
 });
