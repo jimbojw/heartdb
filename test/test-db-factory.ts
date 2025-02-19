@@ -12,7 +12,6 @@ import PouchDBPluginAdapterMemory from "pouchdb-adapter-memory";
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
-import { createPromise } from "./create-promise";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
@@ -50,25 +49,8 @@ export class TestDbFactory<DocType extends Document = Document> {
     const heartDb = new HeartDB(pouchDb);
 
     // Insert initial documents if any.
-    const initialDocs = this.factoryParams?.initialDocs;
-    if (initialDocs && initialDocs.length) {
-      // Monitor HeartDB changes until we've consumed one per test doc.
-      const insertedPromise = createPromise<void>();
-      let docsInserted = 0;
-      const countChange = () => {
-        docsInserted++;
-        if (docsInserted === initialDocs.length) {
-          insertedPromise.resolve();
-        }
-      };
-      const disconnect = heartDb.onChange(countChange);
-
-      // Insert all test docs.
-      await heartDb.pouchDb.bulkDocs(initialDocs);
-
-      // Await all change notifications, then disconnect.
-      await insertedPromise.promise;
-      disconnect();
+    for (const doc of this.factoryParams?.initialDocs ?? []) {
+      await heartDb.put(doc);
     }
 
     return heartDb;
