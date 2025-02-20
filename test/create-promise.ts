@@ -1,6 +1,7 @@
 /**
  * @license SPDX-License-Identifier: Apache-2.0
  */
+
 /**
  * @fileoverview Create a Promise and expose its resolve and reject functions.
  */

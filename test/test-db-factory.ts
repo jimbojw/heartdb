@@ -1,6 +1,7 @@
 /**
  * @license SPDX-License-Identifier: Apache-2.0
  */
+
 /**
  * @fileoverview Factory for creating HeartDBs for testing.
  */

@@ -1,6 +1,7 @@
 /**
  * @license SPDX-License-Identifier: Apache-2.0
  */
+
 /**
  * @fileoverview Custom Events and related types.
  */
