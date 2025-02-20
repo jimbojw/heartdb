@@ -9,6 +9,7 @@
     "dist",
     "src/**/*.d.ts"
   ],
+  "repository": "github:jimbojw/heartdb",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "clean": "rimraf ./dist && mkdir dist",
