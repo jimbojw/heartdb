@@ -7,6 +7,7 @@
  */
 
 // External dependencies.
+import pDefer from "p-defer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
@@ -14,7 +15,6 @@ import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
 
 // Test dependencies.
-import { createPromise } from "./create-promise";
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
@@ -41,7 +41,7 @@ describe("Subscription::onUpdate()", () => {
     const subscription = new Subscription(heartDb);
 
     // Track call to entering documents.
-    const enterDeferred = createPromise<void>();
+    const enterDeferred = pDefer<void>();
     const enterDisconnect = subscription.onEnter((enterEvent) => {
       // Expect initial query to find documents 98 and 99.
       const docs = enterEvent.detail;
@@ -57,7 +57,7 @@ describe("Subscription::onUpdate()", () => {
     });
 
     let updateCallCount = 0;
-    const updateDeferred = createPromise<void>();
+    const updateDeferred = pDefer<void>();
 
     const updateDisconnect = subscription.onUpdate((updateEvent) => {
       updateCallCount++;

@@ -81,6 +81,9 @@ export class Subscription<
     afterChange: new Set<AfterChangeEventListener<SubscriptionDocType>>(),
   });
 
+  /**
+   * @param heartDb HeartDB instance to use for communication.
+   */
   constructor(heartDb: HeartDB<DocType>) {
     this.heartDb = heartDb;
   }

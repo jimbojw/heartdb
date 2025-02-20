@@ -7,6 +7,7 @@
  */
 
 // External dependencies.
+import pDefer from "p-defer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
@@ -14,7 +15,6 @@ import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
 
 // Test dependencies.
-import { createPromise } from "./create-promise";
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
@@ -149,7 +149,7 @@ describe("Subscription::onEnter()", () => {
     const subscription = new Subscription(heartDb);
     expect(subscription.query).toBeUndefined();
 
-    const deferred = createPromise<void>();
+    const deferred = pDefer<void>();
 
     let callCount = 0;
     const disconnect = subscription.onEnter((enterEvent) => {
