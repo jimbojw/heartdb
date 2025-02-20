@@ -4,7 +4,7 @@ name: Main branch checks, build and release process
 
 on:
   push:
-    branchesignore:
+    branches:
       - main
 
 jobs:
