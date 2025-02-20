@@ -1,0 +1,40 @@
+# Dev workflow. Performs checks but does NOT release.
+# Intended to be run on any pushed development branch (not main).
+
+name: Dev branch checks
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: ./package-lock.json
+      - name: Install dependencies
+        run: npm clean-install
+      - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
+        run: npm audit signatures
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm run test
+      - name: Clean dist/
+        run: npm run clean
+      - name: Build
+        run: npm run build
+      # - name: Package  # We don't current do any special packaging.
+      #   run: npm run package
