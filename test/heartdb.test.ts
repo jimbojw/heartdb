@@ -9,11 +9,13 @@
 // External dependencies.
 import PouchDBPluginAdapterMemory from "pouchdb-adapter-memory";
 import PouchDB from "pouchdb-node";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
+import { createPromise } from "./create-promise";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
@@ -47,7 +49,7 @@ describe("HeartDB", () => {
       expect(heartDb.channel).toBeDefined();
     });
 
-    it("should emit changes incoming on the channel", (done) => {
+    it("should emit changes incoming on the channel", async () => {
       const testDoc = {
         _id: "TEST_ID",
         _rev: "1-abc",
@@ -63,17 +65,21 @@ describe("HeartDB", () => {
 
       const testChannel = new BroadcastChannel(heartDb.channelName);
 
+      const deferred = createPromise<void>();
+
       function handleChangeEvent(event: Event) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
         expect(changeEvent.detail.doc?.testField).toEqual("test value");
         heartDb.eventTarget.removeEventListener("change", handleChangeEvent);
         testChannel.close();
-        done();
+        deferred.resolve();
       }
 
       heartDb.eventTarget.addEventListener("change", handleChangeEvent);
 
       testChannel.postMessage(testChange);
+
+      await deferred.promise;
     });
   });
 
@@ -92,7 +98,7 @@ describe("HeartDB", () => {
       heartdb.close();
     });
 
-    it("should register listener for incoming channel messages", (done) => {
+    it("should register listener for incoming channel messages", async () => {
       const testDoc = {
         _id: "TEST_ID",
         _rev: "1-abc",
@@ -110,18 +116,22 @@ describe("HeartDB", () => {
 
       let disconnect: (() => void) | undefined = undefined;
 
+      const deferred = createPromise<void>();
+
       function handleChangeEvent(event: ChangeEvent) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
         expect(changeEvent.detail.doc?.testField).toEqual("test value");
         disconnect?.();
         disconnect = undefined;
         testChannel.close();
-        done();
+        deferred.resolve();
       }
 
       disconnect = heartdb.onChange(handleChangeEvent);
 
       testChannel.postMessage(testChange);
+
+      await deferred.promise;
     });
   });
 

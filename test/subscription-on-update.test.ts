@@ -6,6 +6,9 @@
  * @fileoverview Jest tests for Subscription's onUpdate() method.
  */
 
+// External dependencies.
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
