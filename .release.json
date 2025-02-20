@@ -17,8 +17,7 @@
           "CHANGELOG.md",
           "dist/**",
           "package.json",
-          "package-lock.json",
-          "src/**/*.d.ts"
+          "package-lock.json"
         ],
         "message": "chore(release): Set `package.json` to ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
