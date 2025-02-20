@@ -6,10 +6,6 @@
  * @fileoverview HeartDB.
  */
 
-// External dependencies.
-import PouchDB from "pouchdb";
-import PouchDBFindPlugin from "pouchdb-find";
-
 // Internal modules.
 import { InternalError } from "./errors";
 import {
@@ -17,13 +13,9 @@ import {
   ChangeEventListener,
   ChangesResponseChange,
 } from "./events";
+import { Subscription } from "./subscription";
 import { Document } from "./types";
-
-// Register pouchdb-find plugin. Note that PouchDB's static `plugin()` method
-// will copy properites to the PouchDB prototype object (monkey patching). So it
-// is not necessary for users of HeartDB to provide previously find-plugged
-// instances.
-PouchDB.plugin(PouchDBFindPlugin);
+import { wrapWithFindPlugin } from "./wrap-with-find-plugin";
 
 /**
  * Prefix string for broadcast channel names.
@@ -87,7 +79,9 @@ export class HeartDB<DocType extends Document = Document> {
    * @param pouchDb PouchDB instance to wrap.
    */
   constructor(pouchDb: PouchDB.Database<DocType>) {
-    this.pouchDb = pouchDb;
+    // Ensure that our pouchDb object has the pouchdb-find plugin methods.
+    this.pouchDb = wrapWithFindPlugin(pouchDb);
+
     this.eventTarget = new EventTarget();
     this.channelName = `${BROADTAST_CHANNEL_NAME_PREFIX}${this.pouchDb.name}`;
 
@@ -236,5 +230,22 @@ export class HeartDB<DocType extends Document = Document> {
         })
         .catch(reject);
     });
+  }
+
+  /**
+   * Create a new subscription instance. If a query is provided, it will be set
+   * on the subscription, and the Promise returned will not resolve until the
+   * `setQuery()` is finished finding initial documents.
+   * @param query Optional query to filter subscription results.
+   * @returns A new subscription instance bound to this HeartDB instance.
+   */
+  async subscription<SubscriptionDocType extends DocType = DocType>(
+    query?: PouchDB.Find.FindRequest<SubscriptionDocType>,
+  ): Promise<Subscription<DocType, SubscriptionDocType>> {
+    const subscription = new Subscription<DocType, SubscriptionDocType>(this);
+    if (query) {
+      await subscription.setQuery(query);
+    }
+    return subscription;
   }
 }

@@ -12,9 +12,12 @@ import PouchDB from "pouchdb-node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
+import { Subscription } from "../src";
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
+
+// Test dependencies.
 import { createPromise } from "./create-promise";
 
 // Register memory adapter.
@@ -27,9 +30,19 @@ describe("HeartDB", () => {
 
   describe("constructor", () => {
     it("should create a new HeartDB instance", () => {
-      const db = new HeartDB(new PouchDB("TEST_DB", { adapter: "memory" }));
-      expect(db).toBeDefined();
-      db.close();
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_DB", { adapter: "memory" }),
+      );
+      expect(heartDb).toBeDefined();
+      heartDb.close();
+    });
+
+    it("should have a pouchDb member with find plugin methods", () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_DB", { adapter: "memory" }),
+      );
+      expect(heartDb.pouchDb.find).toBeInstanceOf(Function);
+      heartDb.close();
     });
   });
 
@@ -198,6 +211,30 @@ describe("HeartDB", () => {
       expect(changeEvent.doc._rev).toMatch(/^1-/);
       expect(changeEvent.doc.testField).toBe("UNIQUE TEST VALUE");
 
+      heartDb.close();
+    });
+  });
+
+  describe("subscription()", () => {
+    it("should create a Subscription instance", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_subscription", { adapter: "memory" }),
+      );
+      const subscription = await heartDb.subscription();
+      expect(subscription).toBeDefined();
+      expect(subscription).toBeInstanceOf(Subscription);
+      heartDb.close();
+    });
+
+    it("should pass optional query", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_subscription", { adapter: "memory" }),
+      );
+      const query = { selector: { testField: "test value" } };
+      const subscription = await heartDb.subscription(query);
+      expect(subscription).toBeDefined();
+      expect(subscription).toBeInstanceOf(Subscription);
+      expect(subscription.query).toBe(query);
       heartDb.close();
     });
   });
