@@ -1,18 +1,22 @@
-# Dev workflow. Performs checks but does NOT release.
-# Intended to be run on any pushed development branch (not main).
+# Release workflow. Performs checks and releases.
 
-name: Dev branch checks
+name: Main branch checks, build and release process
 
 on:
   push:
-    branches-ignore:
+    branchesignore:
       - main
 
 jobs:
-  check:
+  release:
+    name: Release
+    environment: Semantic Release to NPM environment
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # To publish a GitHub release.
+      issues: write # To comment on released issues.
+      pull-requests: write # To comment on released pull requests.
+      id-token: write # To enable use of OIDC for npm provenance.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,3 +40,8 @@ jobs:
         run: npm run clean
       - name: Build
         run: npm run build
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
