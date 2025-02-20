@@ -2,6 +2,7 @@
  * @license SPDX-License-Identifier: Apache-2.0
  */
 import { ChangeEventListener, ChangesResponseChange } from "./events";
+import { Subscription } from "./subscription";
 import { Document } from "./types";
 /**
  * HeartDB is a subscription-based, type-safe wrapper around PouchDB (with
@@ -72,4 +73,12 @@ export declare class HeartDB<DocType extends Document = Document> {
      * @returns Promise that resolves with the change event.
      */
     post(doc: DocType): Promise<ChangesResponseChange<DocType>>;
+    /**
+     * Create a new subscription instance. If a query is provided, it will be set
+     * on the subscription, and the Promise returned will not resolve until the
+     * `setQuery()` is finished finding initial documents.
+     * @param query Optional query to filter subscription results.
+     * @returns A new subscription instance bound to this HeartDB instance.
+     */
+    subscription<SubscriptionDocType extends DocType = DocType>(query?: PouchDB.Find.FindRequest<SubscriptionDocType>): Promise<Subscription<DocType, SubscriptionDocType>>;
 }

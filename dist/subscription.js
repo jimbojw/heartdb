@@ -37,6 +37,9 @@ import { AfterChangeEvent, EnterEvent, ExitEvent, UpdateEvent, } from "./events"
  * @see https://pouchdb.com/guides/mango-queries.html
  */
 export class Subscription {
+    /**
+     * @param heartDb HeartDB instance to use for communication.
+     */
     constructor(heartDb) {
         /**
          * Record of query-matching documents.

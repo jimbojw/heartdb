@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/jimbojw/heartdb/compare/v1.0.3...v1.1.0) (2025-02-20)
+
+
+### Features
+
+* Implement subscription() factory method on HeartDB. ([5f6f3a1](https://github.com/jimbojw/heartdb/commit/5f6f3a1c4f903b1f74616b9b2b365b07be683e4a))
+
 ## [1.0.3](https://github.com/jimbojw/heartdb/compare/v1.0.2...v1.0.3) (2025-02-20)
 
 

@@ -1,20 +1,23 @@
 /**
  * @license SPDX-License-Identifier: Apache-2.0
  */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 /**
  * @fileoverview HeartDB.
  */
-// External dependencies.
-import PouchDB from "pouchdb";
-import PouchDBFindPlugin from "pouchdb-find";
 // Internal modules.
 import { InternalError } from "./errors";
 import { ChangeEvent, } from "./events";
-// Register pouchdb-find plugin. Note that PouchDB's static `plugin()` method
-// will copy properites to the PouchDB prototype object (monkey patching). So it
-// is not necessary for users of HeartDB to provide previously find-plugged
-// instances.
-PouchDB.plugin(PouchDBFindPlugin);
+import { Subscription } from "./subscription";
+import { wrapWithFindPlugin } from "./wrap-with-find-plugin";
 /**
  * Prefix string for broadcast channel names.
  */
@@ -33,7 +36,8 @@ export class HeartDB {
          * Set of change event listeners registered with `onChange()`.
          */
         this.changeEventListeners = new Set();
-        this.pouchDb = pouchDb;
+        // Ensure that our pouchDb object has the pouchdb-find plugin methods.
+        this.pouchDb = wrapWithFindPlugin(pouchDb);
         this.eventTarget = new EventTarget();
         this.channelName = `${BROADTAST_CHANNEL_NAME_PREFIX}${this.pouchDb.name}`;
         // Handle all incoming change messages.
@@ -159,6 +163,22 @@ export class HeartDB {
                 }
             })
                 .catch(reject);
+        });
+    }
+    /**
+     * Create a new subscription instance. If a query is provided, it will be set
+     * on the subscription, and the Promise returned will not resolve until the
+     * `setQuery()` is finished finding initial documents.
+     * @param query Optional query to filter subscription results.
+     * @returns A new subscription instance bound to this HeartDB instance.
+     */
+    subscription(query) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const subscription = new Subscription(this);
+            if (query) {
+                yield subscription.setQuery(query);
+            }
+            return subscription;
         });
     }
 }

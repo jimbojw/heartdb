@@ -54,6 +54,9 @@ export declare class Subscription<DocType extends Document = Document, Subscript
         exit: Set<ExitEventListener<SubscriptionDocType>>;
         afterChange: Set<AfterChangeEventListener<SubscriptionDocType>>;
     }>;
+    /**
+     * @param heartDb HeartDB instance to use for communication.
+     */
     constructor(heartDb: HeartDB<DocType>);
     /**
      * Set the query to follow. This is an asynchronous function which will return
