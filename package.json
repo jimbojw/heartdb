@@ -13,8 +13,7 @@
     "build": "tsc --project tsconfig.build.json",
     "clean": "rimraf ./dist && mkdir dist",
     "lint": "eslint",
-    "test": "npm run test:ci",
-    "test:ci": "vitest run",
+    "test": "vitest run",
     "test:dev": "vitest"
   },
   "keywords": [
@@ -48,5 +47,10 @@
   "dependencies": {
     "pouchdb": "9.0.0",
     "pouchdb-find": "9.0.0"
+  },
+  "overrides": {
+    "ajv": "8.17.1",
+    "fetch-cookie": "3.1.0",
+    "whatwg-url": "14.1.1"
   }
 }
