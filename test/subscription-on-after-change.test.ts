@@ -7,6 +7,7 @@
  */
 
 // External dependencies.
+import pDefer from "p-defer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
@@ -14,7 +15,6 @@ import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
 
 // Test dependencies.
-import { createPromise } from "./create-promise";
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
@@ -41,10 +41,10 @@ describe("Subscription::onAfterChange()", () => {
     const subscription = new Subscription(heartDb);
 
     let callCount = 0;
-    const initialDeferred = createPromise<void>();
-    const deletionDeferred = createPromise<void>();
-    const modifiedDeferred = createPromise<void>();
-    const recreationDeferred = createPromise<void>();
+    const initialDeferred = pDefer<void>();
+    const deletionDeferred = pDefer<void>();
+    const modifiedDeferred = pDefer<void>();
+    const recreationDeferred = pDefer<void>();
 
     const disconnect = subscription.onAfterChange((afterChangeEvent) => {
       callCount++;

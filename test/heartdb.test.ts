@@ -7,6 +7,7 @@
  */
 
 // External dependencies.
+import pDefer from "p-defer";
 import PouchDBPluginAdapterMemory from "pouchdb-adapter-memory";
 import PouchDB from "pouchdb-node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,9 +17,6 @@ import { Subscription } from "../src";
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
-
-// Test dependencies.
-import { createPromise } from "./create-promise";
 
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
@@ -78,7 +76,7 @@ describe("HeartDB", () => {
 
       const testChannel = new BroadcastChannel(heartDb.channelName);
 
-      const deferred = createPromise<void>();
+      const deferred = pDefer<void>();
 
       function handleChangeEvent(event: Event) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
@@ -129,7 +127,7 @@ describe("HeartDB", () => {
 
       let disconnect: (() => void) | undefined = undefined;
 
-      const deferred = createPromise<void>();
+      const deferred = pDefer<void>();
 
       function handleChangeEvent(event: ChangeEvent) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
