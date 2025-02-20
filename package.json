@@ -49,8 +49,9 @@
     "pouchdb-find": "9.0.0"
   },
   "overrides": {
-    "ajv": "8.17.1",
-    "fetch-cookie": "3.1.0",
-    "whatwg-url": "14.1.1"
+    "pouchdb-node": {
+      "fetch-cookie": "3.1.0",
+      "whatwg-url": "14.1.1"
+    }
   }
 }
