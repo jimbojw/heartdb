@@ -6,7 +6,7 @@
  * @fileoverview HeartDB.
  */
 
-// Internal modules.
+// Internal dependencies.
 import { InternalError } from "./errors";
 import {
   ChangeEvent,
@@ -14,7 +14,7 @@ import {
   ChangesResponseChange,
 } from "./events";
 import { Subscription } from "./subscription";
-import { Document } from "./types";
+import { Document, Existing, UpdateCallbackFunction } from "./types";
 import { wrapWithFindPlugin } from "./wrap-with-find-plugin";
 
 /**
@@ -239,6 +239,71 @@ export class HeartDB<DocType extends Document = Document> {
           reject(error);
         });
     });
+  }
+
+  /**
+   * Get a document and return it, or undefined if not found.
+   * @param docId Id of document to retrieve.
+   * @returns Either the document, or undefined if not found.
+   */
+  async get<GetDocType extends DocType = DocType>(
+    docId: PouchDB.Core.DocumentId,
+  ): Promise<(GetDocType & Existing) | undefined> {
+    let existingDoc: (GetDocType & Existing) | undefined = undefined;
+
+    try {
+      existingDoc = await this.pouchDb.get<GetDocType>(docId);
+    } catch (error) {
+      if (
+        !error ||
+        !(typeof error === "object") ||
+        !("status" in error) ||
+        error.status !== 404
+      ) {
+        // Re-throw the error if it's anything other than 404 not found.
+        throw error;
+      }
+    }
+
+    return existingDoc;
+  }
+
+  /**
+   * Update a document in the database. The update callback is passed the
+   * existing document (or undefined if missing), and should return the updated
+   * document. If the update callback returns undefined, the update is aborted.
+   * @param docId Id of the document to update.
+   * @param updateCallback Callback function to update the document.
+   * @returns Promise with the change event, or undefined if aborted.
+   */
+  async update<UpdateDocType extends DocType = DocType>(
+    docId: PouchDB.Core.DocumentId,
+    updateCallback: UpdateCallbackFunction<UpdateDocType>,
+  ): Promise<ChangesResponseChange<DocType> | undefined> {
+    const existingDoc = await this.get<UpdateDocType>(docId);
+
+    const resultDoc = await updateCallback(existingDoc);
+
+    if (!resultDoc) {
+      // Update aborted.
+      return undefined;
+    }
+
+    if (resultDoc._id !== undefined && resultDoc._id !== docId) {
+      throw new Error("document _id cannot be changed.");
+    }
+
+    if (resultDoc._rev !== undefined && resultDoc._rev !== existingDoc?._rev) {
+      throw new Error("document _rev cannot be changed.");
+    }
+
+    // Return the result of putting the updated document.
+    const updatedDoc = {
+      ...resultDoc,
+      _id: docId,
+      _rev: existingDoc?._rev,
+    };
+    return this.put(updatedDoc);
   }
 
   /**

@@ -18,6 +18,9 @@ import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
 
+// Test dependencies.
+import { TestDoc } from "./test-docs";
+
 // Register memory adapter.
 PouchDB.plugin(PouchDBPluginAdapterMemory);
 
@@ -210,6 +213,104 @@ describe("HeartDB", () => {
       expect(changeEvent.doc.testField).toBe("UNIQUE TEST VALUE");
 
       heartDb.close();
+    });
+  });
+
+  describe("get()", () => {
+    it("should return undefind for missing document", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB("TEST_get_missing", { adapter: "memory" }),
+      );
+      const doc = await heartDb.get("MISSING_DOC");
+      expect(doc).toBeUndefined();
+    });
+
+    it("should return a found focument", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB<TestDoc>("TEST_get_found", { adapter: "memory" }),
+      );
+
+      const testDoc = {
+        _id: "TEST_ID",
+        testField: "test value",
+      };
+
+      await heartDb.put(testDoc);
+
+      const doc = await heartDb.get("TEST_ID");
+
+      expect(doc).toBeDefined();
+      expect(doc?._id).toBe(testDoc._id);
+      expect(doc?.testField).toBe(testDoc.testField);
+    });
+  });
+
+  describe("update()", () => {
+    it("should resolve with undefined when aborted", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB<TestDoc>("TEST_update_abort", { adapter: "memory" }),
+      );
+
+      const testDoc = {
+        _id: "TEST_ID",
+        testField: "test value",
+      };
+
+      await heartDb.put(testDoc);
+
+      let callCount = 0;
+
+      const updateChangeEvent = await heartDb.update(
+        "TEST_ID",
+        (existingDoc) => {
+          callCount++;
+
+          expect(existingDoc).toBeDefined();
+          expect(existingDoc?._id).toBe(testDoc._id);
+          expect(existingDoc?.testField).toBe(testDoc.testField);
+
+          // Abort the update.
+          return undefined;
+        },
+      );
+
+      expect(callCount).toBe(1);
+      expect(updateChangeEvent).toBeUndefined();
+    });
+
+    it("should resolve with the change event on update", async () => {
+      const heartDb = new HeartDB(
+        new PouchDB<TestDoc>("TEST_update_success", { adapter: "memory" }),
+      );
+
+      const testDoc = {
+        _id: "TEST_ID",
+        testField: "test value",
+      };
+
+      await heartDb.put(testDoc);
+
+      let callCount = 0;
+
+      const updateChangeEvent = await heartDb.update(
+        "TEST_ID",
+        (existingDoc) => {
+          callCount++;
+
+          expect(existingDoc).toBeDefined();
+          expect(existingDoc?._id).toBe(testDoc._id);
+          expect(existingDoc?.testField).toBe(testDoc.testField);
+
+          // Change the test field.
+          return { testField: "updated value" };
+        },
+      );
+
+      expect(callCount).toBe(1);
+      expect(updateChangeEvent).toBeDefined();
+      expect(updateChangeEvent?.id).toBe(testDoc._id);
+      expect(updateChangeEvent?.doc._rev).toMatch(/^2-/);
+      expect(updateChangeEvent?.doc.testField).toBe("updated value");
     });
   });
 

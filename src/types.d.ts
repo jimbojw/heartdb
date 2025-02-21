@@ -27,3 +27,19 @@ export type Docs<DocType extends Document> = Record<
   PouchDB.Core.DocumentId,
   DocType & Existing
 >;
+
+/**
+ * Simple union type for promises or values they yield.
+ */
+export type PromiseOrValue<ValueType> = ValueType | Promise<ValueType>;
+
+/**
+ * Callback function signature for HeartDB's `update()` method. The function may
+ * be asynchronous, so it may return a Promise, or simply the value to use. If
+ * it returns undefined, or the Promise it returns yields undefined, the
+ * update() method that invoked the callback will abort the update.
+ * @template UpdateDocType Type of document to update.
+ */
+export type UpdateCallbackFunction<UpdateDocType extends Document> = (
+  doc: (UpdateDocType & Existing) | undefined,
+) => PromiseOrValue<UpdateDocType | undefined>;
