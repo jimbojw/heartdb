@@ -20,6 +20,7 @@ import {
   UpdateEventListener,
 } from "./events";
 import { HeartDB } from "./heartdb";
+import { LitSignal } from "./lit-signal";
 import { Docs, Document, Existing } from "./types";
 
 /**
@@ -32,14 +33,29 @@ import { Docs, Document, Existing } from "./types";
  *   // Create subscription. Initially disconnected.
  *   const subscription = new Subscription(heartDb);
  *
- *   // Subscribe to subscription events.
+ *   // Subscribe to subscription events. Returned value is a callback function
+ *   // to disconnect the event listener.
+ *   const disconnect = subscription.onEnter((enterEvent) => {
+ *     // Handle entering documents in enterEvent.detail.
+ *   });
  *
- *   subscription.setQuery({
+ *   // Setting the query will connect the subscription. Returned promise will
+ *   // resolve when the initial query is finished.
+ *   await subscription.setQuery({
  *    selector: { type: "thing" },
  *   });
  *
+ *   // ...
+ *
+ *   // Disconnect the event listener.
+ *   disconnect();
+ *
+ *   // Stop subscription from following the query by setting it to undefined.
+ *   await subscription.setQuery(undefined);
  * ```
  *
+ * @template DocType Type of document in the HeartDB.
+ * @template SubscriptionDocType Type of document in the Subscription.
  * @see https://pouchdb.com/guides/mango-queries.html
  */
 export class Subscription<
@@ -430,5 +446,12 @@ export class Subscription<
       );
       this.eventListeners.afterChange.delete(afterChangeListener);
     };
+  }
+
+  /**
+   * @returns New LitSignal instance wrapping this subscription.
+   */
+  litSignal(): LitSignal<DocType, SubscriptionDocType> {
+    return new LitSignal(this);
   }
 }

@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Jest tests for Subscription's onExit() method.
+ * @fileoverview Tests for Subscription's onExit() method.
  */
 
 // External dependencies.

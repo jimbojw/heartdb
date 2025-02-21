@@ -48,6 +48,7 @@
     "vitest": "3.0.6"
   },
   "dependencies": {
+    "@lit-labs/signals": "0.1.2",
     "pouchdb": "9.0.0",
     "pouchdb-find": "9.0.0"
   },

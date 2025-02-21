@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Jest tests for Subscription.
+ * @fileoverview Tests for Subscription.
  */
 
 // External dependencies.
