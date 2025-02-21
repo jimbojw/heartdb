@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Jest tests for Subscription's onUpdate() method.
+ * @fileoverview Tests for Subscription's onUpdate() method.
  */
 
 // External dependencies.

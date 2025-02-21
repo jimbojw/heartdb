@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Jest tests for Subscription's onEnter() method.
+ * @fileoverview Tests for Subscription's onEnter() method.
  */
 
 // External dependencies.

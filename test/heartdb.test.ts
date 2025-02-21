@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Jest tests for HeartDB.
+ * @fileoverview Tests for HeartDB.
  */
 
 // External dependencies.
