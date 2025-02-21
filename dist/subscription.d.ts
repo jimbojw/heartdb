@@ -3,6 +3,7 @@
  */
 import { AfterChangeEventListener, ChangeEventListener, EnterEventListener, ExitEventListener, UpdateEventListener } from "./events";
 import { HeartDB } from "./heartdb";
+import { LitSignal } from "./lit-signal";
 import { Docs, Document, Existing } from "./types";
 /**
  * A Subscription follows a query and tracks documents that enter, update, or
@@ -14,14 +15,29 @@ import { Docs, Document, Existing } from "./types";
  *   // Create subscription. Initially disconnected.
  *   const subscription = new Subscription(heartDb);
  *
- *   // Subscribe to subscription events.
+ *   // Subscribe to subscription events. Returned value is a callback function
+ *   // to disconnect the event listener.
+ *   const disconnect = subscription.onEnter((enterEvent) => {
+ *     // Handle entering documents in enterEvent.detail.
+ *   });
  *
- *   subscription.setQuery({
+ *   // Setting the query will connect the subscription. Returned promise will
+ *   // resolve when the initial query is finished.
+ *   await subscription.setQuery({
  *    selector: { type: "thing" },
  *   });
  *
+ *   // ...
+ *
+ *   // Disconnect the event listener.
+ *   disconnect();
+ *
+ *   // Stop subscription from following the query by setting it to undefined.
+ *   await subscription.setQuery(undefined);
  * ```
  *
+ * @template DocType Type of document in the HeartDB.
+ * @template SubscriptionDocType Type of document in the Subscription.
  * @see https://pouchdb.com/guides/mango-queries.html
  */
 export declare class Subscription<DocType extends Document = Document, SubscriptionDocType extends DocType = DocType> {
@@ -108,4 +124,8 @@ export declare class Subscription<DocType extends Document = Document, Subscript
      * @returns Disconnect function to unsubscribe the listener.
      */
     onAfterChange(afterChangeListener: AfterChangeEventListener<SubscriptionDocType>): () => void;
+    /**
+     * @returns New LitSignal instance wrapping this subscription.
+     */
+    litSignal(): LitSignal<DocType, SubscriptionDocType>;
 }

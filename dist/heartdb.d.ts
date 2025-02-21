@@ -8,6 +8,8 @@ import { Document } from "./types";
  * HeartDB is a subscription-based, type-safe wrapper around PouchDB (with
  * pouch-find). It uses BroadcastChannels to ensure that changed documents in
  * one execution context (e.g. tab) are detected in all other contexts.
+ *
+ * @template DocType Base type of documents stored in the HeartDB.
  */
 export declare class HeartDB<DocType extends Document = Document> {
     /**

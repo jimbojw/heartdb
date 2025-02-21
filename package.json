@@ -1,6 +1,6 @@
 {
   "name": "heartdb",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Typed query subscription wrapper around PouchDB.",
   "main": "dist/index.js",
   "type": "module",

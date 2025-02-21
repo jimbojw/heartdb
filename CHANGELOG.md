@@ -1,3 +1,16 @@
+# [1.2.0](https://github.com/jimbojw/heartdb/compare/v1.1.0...v1.2.0) (2025-02-21)
+
+
+### Bug Fixes
+
+* Disconnect change listener on put/post failure. ([acf2fff](https://github.com/jimbojw/heartdb/commit/acf2fff1e556dc7496a5d9af5877db5e1a8a34e9))
+
+
+### Features
+
+* Adding litSignal() factory method to Subscription class. ([db14429](https://github.com/jimbojw/heartdb/commit/db144290564d01aa8f04301bc64065312e584a0b))
+* Implement LitSignal class, with tests. ([ebe2b02](https://github.com/jimbojw/heartdb/commit/ebe2b02f16209c153b4f4f61245bfde884e19cfa))
+
 # [1.1.0](https://github.com/jimbojw/heartdb/compare/v1.0.3...v1.1.0) (2025-02-20)
 
 

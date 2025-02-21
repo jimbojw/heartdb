@@ -26,6 +26,8 @@ const BROADTAST_CHANNEL_NAME_PREFIX = "heartdb_";
  * HeartDB is a subscription-based, type-safe wrapper around PouchDB (with
  * pouch-find). It uses BroadcastChannels to ensure that changed documents in
  * one execution context (e.g. tab) are detected in all other contexts.
+ *
+ * @template DocType Base type of documents stored in the HeartDB.
  */
 export class HeartDB {
     /**
@@ -103,7 +105,10 @@ export class HeartDB {
                     disconnect();
                 }
             });
-            this.pouchDb.put(doc).catch(reject);
+            this.pouchDb.put(doc).catch((error) => {
+                disconnect();
+                reject(error);
+            });
         });
     }
     /**
@@ -162,7 +167,11 @@ export class HeartDB {
                     handleChange(changeEvent);
                 }
             })
-                .catch(reject);
+                .catch((error) => {
+                disconnect === null || disconnect === void 0 ? void 0 : disconnect();
+                disconnect = undefined;
+                reject(error);
+            });
         });
     }
     /**
