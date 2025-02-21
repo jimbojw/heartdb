@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/jimbojw/heartdb/compare/v1.2.0...v1.3.0) (2025-02-21)
+
+
+### Features
+
+* Implement get() and update() methods for HeartDB plus tests. ([60c6c71](https://github.com/jimbojw/heartdb/commit/60c6c719abe2e478d1681a769cd0a0e0a017ae20))
+
 # [1.2.0](https://github.com/jimbojw/heartdb/compare/v1.1.0...v1.2.0) (2025-02-21)
 
 

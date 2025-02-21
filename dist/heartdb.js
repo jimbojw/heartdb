@@ -13,7 +13,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 /**
  * @fileoverview HeartDB.
  */
-// Internal modules.
+// Internal dependencies.
 import { InternalError } from "./errors";
 import { ChangeEvent, } from "./events";
 import { Subscription } from "./subscription";
@@ -172,6 +172,56 @@ export class HeartDB {
                 disconnect = undefined;
                 reject(error);
             });
+        });
+    }
+    /**
+     * Get a document and return it, or undefined if not found.
+     * @param docId Id of document to retrieve.
+     * @returns Either the document, or undefined if not found.
+     */
+    get(docId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let existingDoc = undefined;
+            try {
+                existingDoc = yield this.pouchDb.get(docId);
+            }
+            catch (error) {
+                if (!error ||
+                    !(typeof error === "object") ||
+                    !("status" in error) ||
+                    error.status !== 404) {
+                    // Re-throw the error if it's anything other than 404 not found.
+                    throw error;
+                }
+            }
+            return existingDoc;
+        });
+    }
+    /**
+     * Update a document in the database. The update callback is passed the
+     * existing document (or undefined if missing), and should return the updated
+     * document. If the update callback returns undefined, the update is aborted.
+     * @param docId Id of the document to update.
+     * @param updateCallback Callback function to update the document.
+     * @returns Promise with the change event, or undefined if aborted.
+     */
+    update(docId, updateCallback) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const existingDoc = yield this.get(docId);
+            const resultDoc = yield updateCallback(existingDoc);
+            if (!resultDoc) {
+                // Update aborted.
+                return undefined;
+            }
+            if (resultDoc._id !== undefined && resultDoc._id !== docId) {
+                throw new Error("document _id cannot be changed.");
+            }
+            if (resultDoc._rev !== undefined && resultDoc._rev !== (existingDoc === null || existingDoc === void 0 ? void 0 : existingDoc._rev)) {
+                throw new Error("document _rev cannot be changed.");
+            }
+            // Return the result of putting the updated document.
+            const updatedDoc = Object.assign(Object.assign({}, resultDoc), { _id: docId, _rev: existingDoc === null || existingDoc === void 0 ? void 0 : existingDoc._rev });
+            return this.put(updatedDoc);
         });
     }
     /**

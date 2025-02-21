@@ -3,7 +3,7 @@
  */
 import { ChangeEventListener, ChangesResponseChange } from "./events";
 import { Subscription } from "./subscription";
-import { Document } from "./types";
+import { Document, Existing, UpdateCallbackFunction } from "./types";
 /**
  * HeartDB is a subscription-based, type-safe wrapper around PouchDB (with
  * pouch-find). It uses BroadcastChannels to ensure that changed documents in
@@ -75,6 +75,21 @@ export declare class HeartDB<DocType extends Document = Document> {
      * @returns Promise that resolves with the change event.
      */
     post(doc: DocType): Promise<ChangesResponseChange<DocType>>;
+    /**
+     * Get a document and return it, or undefined if not found.
+     * @param docId Id of document to retrieve.
+     * @returns Either the document, or undefined if not found.
+     */
+    get<GetDocType extends DocType = DocType>(docId: PouchDB.Core.DocumentId): Promise<(GetDocType & Existing) | undefined>;
+    /**
+     * Update a document in the database. The update callback is passed the
+     * existing document (or undefined if missing), and should return the updated
+     * document. If the update callback returns undefined, the update is aborted.
+     * @param docId Id of the document to update.
+     * @param updateCallback Callback function to update the document.
+     * @returns Promise with the change event, or undefined if aborted.
+     */
+    update<UpdateDocType extends DocType = DocType>(docId: PouchDB.Core.DocumentId, updateCallback: UpdateCallbackFunction<UpdateDocType>): Promise<ChangesResponseChange<DocType> | undefined>;
     /**
      * Create a new subscription instance. If a query is provided, it will be set
      * on the subscription, and the Promise returned will not resolve until the
