@@ -162,7 +162,10 @@ export class HeartDB<DocType extends Document = Document> {
           disconnect();
         }
       });
-      this.pouchDb.put(doc).catch(reject);
+      this.pouchDb.put(doc).catch((error) => {
+        disconnect();
+        reject(error);
+      });
     });
   }
 
@@ -228,7 +231,11 @@ export class HeartDB<DocType extends Document = Document> {
             handleChange(changeEvent);
           }
         })
-        .catch(reject);
+        .catch((error) => {
+          disconnect?.();
+          disconnect = undefined;
+          reject(error);
+        });
     });
   }
 
