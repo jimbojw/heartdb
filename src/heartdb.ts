@@ -14,6 +14,7 @@ import {
   ChangeEventListener,
   ChangesResponseChange,
 } from "./events";
+import { LiveDoc } from "./live-doc";
 import { Subscription } from "./subscription";
 import { Document, Existing, UpdateCallbackFunction } from "./types";
 import { wrapWithFindPlugin } from "./wrap-with-find-plugin";
@@ -308,5 +309,16 @@ export class HeartDB<
       await subscription.setQuery(query);
     }
     return subscription;
+  }
+
+  /**
+   * Create a new LiveDoc instance following the provided id.
+   * @param docId Id of document to follow.
+   * @returns A new LiveDoc instance.
+   */
+  liveDoc<LiveDocType extends DocType = DocType>(
+    docId: PouchDB.Core.DocumentId,
+  ): LiveDoc<DocType, LiveDocType> {
+    return new LiveDoc<DocType, LiveDocType>(this, docId);
   }
 }

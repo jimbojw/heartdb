@@ -6,7 +6,7 @@
  * @fileoverview Custom Events and related types.
  */
 
-import { Docs, Document } from "./types";
+import { Docs, Document, Existing } from "./types";
 
 /**
  * Since our change queries always include docs, we extend the
@@ -106,4 +106,22 @@ export class AfterChangeEvent<
  */
 export type AfterChangeEventListener<DocType extends Document> = (
   afterChangeEvent: AfterChangeEvent<DocType>,
+) => void;
+
+/**
+ * Event dispatched by a LiveDoc when its doc is set.
+ */
+export class SetEvent<LiveDocType extends Document> extends CustomEvent<
+  (LiveDocType & Existing) | undefined
+> {
+  constructor(detail: (LiveDocType & Existing) | undefined) {
+    super("set", { detail });
+  }
+}
+
+/**
+ * Listener for SetEvents.
+ */
+export type SetEventListener<DocType extends Document> = (
+  setEvent: SetEvent<DocType>,
 ) => void;
