@@ -21,7 +21,6 @@ import {
   UpdateEventListener,
 } from "./events";
 import { HeartDB } from "./heartdb";
-import { LitSignal } from "./lit-signal";
 import { Docs, Document, Existing } from "./types";
 
 /**
@@ -392,12 +391,5 @@ export class Subscription<
     afterChangeListener: AfterChangeEventListener<SubscriptionDocType>,
   ): () => void {
     return this.addEventListener("afterchange", afterChangeListener);
-  }
-
-  /**
-   * @returns New LitSignal instance wrapping this subscription.
-   */
-  litSignal(): LitSignal<DocType, SubscriptionDocType> {
-    return new LitSignal(this);
   }
 }
