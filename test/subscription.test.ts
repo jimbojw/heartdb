@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 // Internal dependencies.
+import { CloseableEventTarget } from "../src/closeable-event-target";
 import { HeartDB } from "../src/heartdb";
 import { Subscription } from "../src/subscription";
 
@@ -22,8 +23,11 @@ describe("Subscription", () => {
     it("should create a new Subscription instance", () => {
       // Note: By passing an empty object, this test also checks implicitly that
       // no methods are called on the object.
-      const subscription = new Subscription({} as unknown as HeartDB);
+      const subscription = new Subscription(
+        new CloseableEventTarget() as unknown as HeartDB,
+      );
       expect(subscription).toBeDefined();
+      subscription.heartDb.close();
     });
   });
 });

@@ -7,6 +7,7 @@
  */
 
 // Internal dependencies.
+import { CloseableEventTarget } from "./closeable-event-target";
 import { InternalError } from "./errors";
 import {
   AfterChangeEvent,
@@ -54,6 +55,10 @@ import { Docs, Document, Existing } from "./types";
  *   await subscription.setQuery(undefined);
  * ```
  *
+ * @emits enter When a document enters the result set.
+ * @emits update When a document updates in the result set.
+ * @emits exit When a document exits the result set.
+ * @emits afterchange After any enter/update/exit events.
  * @template DocType Type of document in the HeartDB.
  * @template SubscriptionDocType Type of document in the Subscription.
  * @see https://pouchdb.com/guides/mango-queries.html
@@ -61,7 +66,7 @@ import { Docs, Document, Existing } from "./types";
 export class Subscription<
   DocType extends Document = Document,
   SubscriptionDocType extends DocType = DocType,
-> {
+> extends CloseableEventTarget {
   /**
    * HeartDB instance to query and subscribe to.
    */
@@ -78,30 +83,29 @@ export class Subscription<
   readonly docs: Docs<SubscriptionDocType> = {};
 
   /**
-   * Event target for dispatching events.
-   */
-  eventTarget = new EventTarget();
-
-  /**
    * Disconnect function for HeartDB changes feed (when connected).
    */
   disconnect?: () => void;
 
   /**
-   * Event listeners set by respective on*() methods.
-   */
-  readonly eventListeners = Object.freeze({
-    enter: new Set<EnterEventListener<SubscriptionDocType>>(),
-    update: new Set<UpdateEventListener<SubscriptionDocType>>(),
-    exit: new Set<ExitEventListener<SubscriptionDocType>>(),
-    afterChange: new Set<AfterChangeEventListener<SubscriptionDocType>>(),
-  });
-
-  /**
    * @param heartDb HeartDB instance to use for communication.
    */
   constructor(heartDb: HeartDB<DocType>) {
+    super();
     this.heartDb = heartDb;
+    const closeDisconnect = heartDb.addEventListener("close", () => {
+      this.close();
+      closeDisconnect();
+    });
+  }
+
+  override close() {
+    if (this.closed) {
+      return;
+    }
+    this.disconnect?.call(null);
+    this.disconnect = undefined;
+    super.close();
   }
 
   /**
@@ -140,7 +144,7 @@ export class Subscription<
       requestCount++;
       const results = await this.heartDb.pouchDb.find({ ...query, skip });
 
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preempted by another call.
         return;
       }
@@ -173,7 +177,7 @@ export class Subscription<
     query: PouchDB.Find.FindRequest<SubscriptionDocType>,
   ): ChangeEventListener<DocType> {
     return async (changeEvent) => {
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preepmeted. Should have been disconnected.
         throw new InternalError("Unexpected change event from replaced query");
       }
@@ -183,9 +187,9 @@ export class Subscription<
       // If the document is in our results and has been deleted, then we can
       // process the deletion as is.
       if (id in this.docs && deleted) {
-        this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+        this.dispatchEvent(new ExitEvent({ id: changedDoc }));
         delete this.docs[id];
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -197,7 +201,7 @@ export class Subscription<
       });
 
       // Recheck query is still live.
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preepmeted during find request.
         return;
       }
@@ -205,9 +209,9 @@ export class Subscription<
       // If no docs were returned, then the changed document no longer matches
       // the query and should be removed from the result set.
       if (!response.docs.length) {
-        this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+        this.dispatchEvent(new ExitEvent({ id: changedDoc }));
         delete this.docs[id];
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -232,11 +236,11 @@ export class Subscription<
 
       // If we don't already have a doc with this id, then it's entering.
       if (!existingDoc) {
-        this.eventTarget.dispatchEvent(
+        this.dispatchEvent(
           new EnterEvent<SubscriptionDocType>({ [id]: responseDoc }),
         );
         this.docs[id] = responseDoc;
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -247,11 +251,11 @@ export class Subscription<
       }
 
       // Otherwise, the document has been updated.
-      this.eventTarget.dispatchEvent(
+      this.dispatchEvent(
         new UpdateEvent<SubscriptionDocType>({ [id]: responseDoc }),
       );
       this.docs[id] = responseDoc;
-      this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+      this.dispatchEvent(new AfterChangeEvent(this.docs));
     };
   }
 
@@ -325,19 +329,13 @@ export class Subscription<
 
     // Emit exit, enter and update events.
     if (exitCount) {
-      this.eventTarget.dispatchEvent(
-        new ExitEvent<SubscriptionDocType>(exitDocs),
-      );
+      this.dispatchEvent(new ExitEvent<SubscriptionDocType>(exitDocs));
     }
     if (enterCount) {
-      this.eventTarget.dispatchEvent(
-        new EnterEvent<SubscriptionDocType>(enterDocs),
-      );
+      this.dispatchEvent(new EnterEvent<SubscriptionDocType>(enterDocs));
     }
     if (updateCount) {
-      this.eventTarget.dispatchEvent(
-        new UpdateEvent<SubscriptionDocType>(updateDocs),
-      );
+      this.dispatchEvent(new UpdateEvent<SubscriptionDocType>(updateDocs));
     }
 
     // Update the internal document record by adding/removing documents.
@@ -352,9 +350,7 @@ export class Subscription<
     }
 
     // Emit a catch-all afterchange event.
-    this.eventTarget.dispatchEvent(
-      new AfterChangeEvent<SubscriptionDocType>(this.docs),
-    );
+    this.dispatchEvent(new AfterChangeEvent<SubscriptionDocType>(this.docs));
   }
 
   /**
@@ -363,18 +359,7 @@ export class Subscription<
    * @returns Disconnect function to unsubscribe the listener.
    */
   onEnter(enterListener: EnterEventListener<SubscriptionDocType>): () => void {
-    if (this.eventListeners.enter.has(enterListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.enter.add(enterListener);
-    this.eventTarget.addEventListener("enter", enterListener as EventListener);
-    return () => {
-      this.eventTarget.removeEventListener(
-        "enter",
-        enterListener as EventListener,
-      );
-      this.eventListeners.enter.delete(enterListener);
-    };
+    return this.addEventListener("enter", enterListener);
   }
 
   /**
@@ -385,21 +370,7 @@ export class Subscription<
   onUpdate(
     updateListener: UpdateEventListener<SubscriptionDocType>,
   ): () => void {
-    if (this.eventListeners.update.has(updateListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.update.add(updateListener);
-    this.eventTarget.addEventListener(
-      "update",
-      updateListener as EventListener,
-    );
-    return () => {
-      this.eventTarget.removeEventListener(
-        "update",
-        updateListener as EventListener,
-      );
-      this.eventListeners.update.delete(updateListener);
-    };
+    return this.addEventListener("update", updateListener);
   }
 
   /**
@@ -408,18 +379,7 @@ export class Subscription<
    * @returns Disconnect function to unsubscribe the listener.
    */
   onExit(exitListener: ExitEventListener<SubscriptionDocType>): () => void {
-    if (this.eventListeners.exit.has(exitListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.exit.add(exitListener);
-    this.eventTarget.addEventListener("exit", exitListener as EventListener);
-    return () => {
-      this.eventTarget.removeEventListener(
-        "exit",
-        exitListener as EventListener,
-      );
-      this.eventListeners.exit.delete(exitListener);
-    };
+    return this.addEventListener("exit", exitListener);
   }
 
   /**
@@ -431,21 +391,7 @@ export class Subscription<
   onAfterChange(
     afterChangeListener: AfterChangeEventListener<SubscriptionDocType>,
   ): () => void {
-    if (this.eventListeners.afterChange.has(afterChangeListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.afterChange.add(afterChangeListener);
-    this.eventTarget.addEventListener(
-      "afterchange",
-      afterChangeListener as EventListener,
-    );
-    return () => {
-      this.eventTarget.removeEventListener(
-        "afterchange",
-        afterChangeListener as EventListener,
-      );
-      this.eventListeners.afterChange.delete(afterChangeListener);
-    };
+    return this.addEventListener("afterchange", afterChangeListener);
   }
 
   /**
