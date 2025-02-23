@@ -3,10 +3,11 @@
  */
 
 /**
- * @fileoverview HeartDB query subscription object.
+ * @fileoverview HeartDB live query object.
  */
 
 // Internal dependencies.
+import { CloseableEventTarget } from "./closeable-event-target";
 import { InternalError } from "./errors";
 import {
   AfterChangeEvent,
@@ -20,28 +21,27 @@ import {
   UpdateEventListener,
 } from "./events";
 import { HeartDB } from "./heartdb";
-import { LitSignal } from "./lit-signal";
 import { Docs, Document, Existing } from "./types";
 
 /**
- * A Subscription follows a query and tracks documents that enter, update, or
- * exit.
+ * A LiveQuery follows a query and tracks documents that enter, update, or exit.
  *
  * Usage:
  *
  * ```
- *   // Create subscription. Initially disconnected.
- *   const subscription = new Subscription(heartDb);
+ *   // Create live query. Initially disconnected.
+ *   const liveQuery = new LiveQuery(heartDb);
  *
- *   // Subscribe to subscription events. Returned value is a callback function
+ *   // Subscribe to live query events. Returned value is a callback function
  *   // to disconnect the event listener.
- *   const disconnect = subscription.onEnter((enterEvent) => {
+ *   const disconnect = liveQuery.onEnter((enterEvent) => {
  *     // Handle entering documents in enterEvent.detail.
  *   });
  *
- *   // Setting the query will connect the subscription. Returned promise will
- *   // resolve when the initial query is finished.
- *   await subscription.setQuery({
+ *   // Setting the query will cause the LiveQuery object to begin listening for
+ *   // changes on HeartDB. Returned promise will resolve when the initial query
+ *   // is finished.
+ *   await liveQuery.setQuery({
  *    selector: { type: "thing" },
  *   });
  *
@@ -50,18 +50,25 @@ import { Docs, Document, Existing } from "./types";
  *   // Disconnect the event listener.
  *   disconnect();
  *
- *   // Stop subscription from following the query by setting it to undefined.
- *   await subscription.setQuery(undefined);
+ *   // Stop LiveQuery from following the query by setting it to undefined.
+ *   await liveQuery.setQuery(undefined);
+ *
+ *   // Close connection (stop following the query). Irreversible.
+ *   liveQuery.close();
  * ```
  *
+ * @emits enter When a document enters the result set.
+ * @emits update When a document updates in the result set.
+ * @emits exit When a document exits the result set.
+ * @emits afterchange After any enter/update/exit events.
  * @template DocType Type of document in the HeartDB.
- * @template SubscriptionDocType Type of document in the Subscription.
+ * @template LiveQueryDocType Type of document returned by query.
  * @see https://pouchdb.com/guides/mango-queries.html
  */
-export class Subscription<
+export class LiveQuery<
   DocType extends Document = Document,
-  SubscriptionDocType extends DocType = DocType,
-> {
+  LiveQueryDocType extends DocType = DocType,
+> extends CloseableEventTarget {
   /**
    * HeartDB instance to query and subscribe to.
    */
@@ -70,17 +77,12 @@ export class Subscription<
   /**
    * PouchDB query object. If unset, then subscription is disconnected.
    */
-  query?: PouchDB.Find.FindRequest<SubscriptionDocType>;
+  query?: PouchDB.Find.FindRequest<LiveQueryDocType>;
 
   /**
    * Record of query-matching documents.
    */
-  readonly docs: Docs<SubscriptionDocType> = {};
-
-  /**
-   * Event target for dispatching events.
-   */
-  eventTarget = new EventTarget();
+  readonly docs: Docs<LiveQueryDocType> = {};
 
   /**
    * Disconnect function for HeartDB changes feed (when connected).
@@ -88,20 +90,24 @@ export class Subscription<
   disconnect?: () => void;
 
   /**
-   * Event listeners set by respective on*() methods.
-   */
-  readonly eventListeners = Object.freeze({
-    enter: new Set<EnterEventListener<SubscriptionDocType>>(),
-    update: new Set<UpdateEventListener<SubscriptionDocType>>(),
-    exit: new Set<ExitEventListener<SubscriptionDocType>>(),
-    afterChange: new Set<AfterChangeEventListener<SubscriptionDocType>>(),
-  });
-
-  /**
    * @param heartDb HeartDB instance to use for communication.
    */
   constructor(heartDb: HeartDB<DocType>) {
+    super();
     this.heartDb = heartDb;
+    const closeDisconnect = heartDb.addEventListener("close", () => {
+      this.close();
+      closeDisconnect();
+    });
+  }
+
+  override close() {
+    if (this.closed) {
+      return;
+    }
+    this.disconnect?.call(null);
+    this.disconnect = undefined;
+    super.close();
   }
 
   /**
@@ -115,7 +121,7 @@ export class Subscription<
    * documents.
    * @param query Query to find and follow.
    */
-  async setQuery(query?: PouchDB.Find.FindRequest<SubscriptionDocType>) {
+  async setQuery(query?: PouchDB.Find.FindRequest<LiveQueryDocType>) {
     if (query === this.query) {
       // Query is already set. Nothing to do.
       return;
@@ -140,12 +146,12 @@ export class Subscription<
       requestCount++;
       const results = await this.heartDb.pouchDb.find({ ...query, skip });
 
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preempted by another call.
         return;
       }
 
-      const docs = results.docs as (SubscriptionDocType & Existing)[];
+      const docs = results.docs as (LiveQueryDocType & Existing)[];
 
       skip += docs.length;
 
@@ -170,10 +176,10 @@ export class Subscription<
    * @returns Change event listener.
    */
   createQueryListener(
-    query: PouchDB.Find.FindRequest<SubscriptionDocType>,
+    query: PouchDB.Find.FindRequest<LiveQueryDocType>,
   ): ChangeEventListener<DocType> {
     return async (changeEvent) => {
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preepmeted. Should have been disconnected.
         throw new InternalError("Unexpected change event from replaced query");
       }
@@ -183,9 +189,9 @@ export class Subscription<
       // If the document is in our results and has been deleted, then we can
       // process the deletion as is.
       if (id in this.docs && deleted) {
-        this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+        this.dispatchEvent(new ExitEvent({ id: changedDoc }));
         delete this.docs[id];
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -197,7 +203,7 @@ export class Subscription<
       });
 
       // Recheck query is still live.
-      if (this.query !== query) {
+      if (this.closed || this.query !== query) {
         // Preepmeted during find request.
         return;
       }
@@ -205,9 +211,9 @@ export class Subscription<
       // If no docs were returned, then the changed document no longer matches
       // the query and should be removed from the result set.
       if (!response.docs.length) {
-        this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+        this.dispatchEvent(new ExitEvent({ id: changedDoc }));
         delete this.docs[id];
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -218,7 +224,7 @@ export class Subscription<
         );
       }
 
-      const responseDoc = response.docs[0] as SubscriptionDocType & Existing;
+      const responseDoc = response.docs[0] as LiveQueryDocType & Existing;
 
       // If the response doc's id doesn't match the changed doc, then something
       // went wrong.
@@ -232,11 +238,11 @@ export class Subscription<
 
       // If we don't already have a doc with this id, then it's entering.
       if (!existingDoc) {
-        this.eventTarget.dispatchEvent(
-          new EnterEvent<SubscriptionDocType>({ [id]: responseDoc }),
+        this.dispatchEvent(
+          new EnterEvent<LiveQueryDocType>({ [id]: responseDoc }),
         );
         this.docs[id] = responseDoc;
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
         return;
       }
 
@@ -247,11 +253,11 @@ export class Subscription<
       }
 
       // Otherwise, the document has been updated.
-      this.eventTarget.dispatchEvent(
-        new UpdateEvent<SubscriptionDocType>({ [id]: responseDoc }),
+      this.dispatchEvent(
+        new UpdateEvent<LiveQueryDocType>({ [id]: responseDoc }),
       );
       this.docs[id] = responseDoc;
-      this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+      this.dispatchEvent(new AfterChangeEvent(this.docs));
     };
   }
 
@@ -260,20 +266,17 @@ export class Subscription<
    * @param incomingDocs List of docs to replace the current set.
    * @param replace Whether to replace the current set of docs.
    */
-  processDocs(
-    incomingDocs: (SubscriptionDocType & Existing)[],
-    replace: boolean,
-  ) {
-    const enterDocs: Docs<SubscriptionDocType> = {};
+  processDocs(incomingDocs: (LiveQueryDocType & Existing)[], replace: boolean) {
+    const enterDocs: Docs<LiveQueryDocType> = {};
     let enterCount = 0;
 
-    const updateDocs: Docs<SubscriptionDocType> = {};
+    const updateDocs: Docs<LiveQueryDocType> = {};
     let updateCount = 0;
 
-    const exitDocs: Docs<SubscriptionDocType> = {};
+    const exitDocs: Docs<LiveQueryDocType> = {};
     let exitCount = 0;
 
-    const unchangedDocs: Docs<SubscriptionDocType> = {};
+    const unchangedDocs: Docs<LiveQueryDocType> = {};
 
     // Categorize incoming documents as enter/update/exit/unchanged.
     for (const doc of incomingDocs) {
@@ -325,19 +328,13 @@ export class Subscription<
 
     // Emit exit, enter and update events.
     if (exitCount) {
-      this.eventTarget.dispatchEvent(
-        new ExitEvent<SubscriptionDocType>(exitDocs),
-      );
+      this.dispatchEvent(new ExitEvent<LiveQueryDocType>(exitDocs));
     }
     if (enterCount) {
-      this.eventTarget.dispatchEvent(
-        new EnterEvent<SubscriptionDocType>(enterDocs),
-      );
+      this.dispatchEvent(new EnterEvent<LiveQueryDocType>(enterDocs));
     }
     if (updateCount) {
-      this.eventTarget.dispatchEvent(
-        new UpdateEvent<SubscriptionDocType>(updateDocs),
-      );
+      this.dispatchEvent(new UpdateEvent<LiveQueryDocType>(updateDocs));
     }
 
     // Update the internal document record by adding/removing documents.
@@ -352,9 +349,7 @@ export class Subscription<
     }
 
     // Emit a catch-all afterchange event.
-    this.eventTarget.dispatchEvent(
-      new AfterChangeEvent<SubscriptionDocType>(this.docs),
-    );
+    this.dispatchEvent(new AfterChangeEvent<LiveQueryDocType>(this.docs));
   }
 
   /**
@@ -362,19 +357,8 @@ export class Subscription<
    * @param enterListener Enter event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onEnter(enterListener: EnterEventListener<SubscriptionDocType>): () => void {
-    if (this.eventListeners.enter.has(enterListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.enter.add(enterListener);
-    this.eventTarget.addEventListener("enter", enterListener as EventListener);
-    return () => {
-      this.eventTarget.removeEventListener(
-        "enter",
-        enterListener as EventListener,
-      );
-      this.eventListeners.enter.delete(enterListener);
-    };
+  onEnter(enterListener: EnterEventListener<LiveQueryDocType>): () => void {
+    return this.addEventListener("enter", enterListener);
   }
 
   /**
@@ -382,24 +366,8 @@ export class Subscription<
    * @param updateListener Update event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onUpdate(
-    updateListener: UpdateEventListener<SubscriptionDocType>,
-  ): () => void {
-    if (this.eventListeners.update.has(updateListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.update.add(updateListener);
-    this.eventTarget.addEventListener(
-      "update",
-      updateListener as EventListener,
-    );
-    return () => {
-      this.eventTarget.removeEventListener(
-        "update",
-        updateListener as EventListener,
-      );
-      this.eventListeners.update.delete(updateListener);
-    };
+  onUpdate(updateListener: UpdateEventListener<LiveQueryDocType>): () => void {
+    return this.addEventListener("update", updateListener);
   }
 
   /**
@@ -407,19 +375,8 @@ export class Subscription<
    * @param exitListener Exit event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onExit(exitListener: ExitEventListener<SubscriptionDocType>): () => void {
-    if (this.eventListeners.exit.has(exitListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.exit.add(exitListener);
-    this.eventTarget.addEventListener("exit", exitListener as EventListener);
-    return () => {
-      this.eventTarget.removeEventListener(
-        "exit",
-        exitListener as EventListener,
-      );
-      this.eventListeners.exit.delete(exitListener);
-    };
+  onExit(exitListener: ExitEventListener<LiveQueryDocType>): () => void {
+    return this.addEventListener("exit", exitListener);
   }
 
   /**
@@ -429,29 +386,8 @@ export class Subscription<
    * @returns Disconnect function to unsubscribe the listener.
    */
   onAfterChange(
-    afterChangeListener: AfterChangeEventListener<SubscriptionDocType>,
+    afterChangeListener: AfterChangeEventListener<LiveQueryDocType>,
   ): () => void {
-    if (this.eventListeners.afterChange.has(afterChangeListener)) {
-      throw new Error("Listener already registered");
-    }
-    this.eventListeners.afterChange.add(afterChangeListener);
-    this.eventTarget.addEventListener(
-      "afterchange",
-      afterChangeListener as EventListener,
-    );
-    return () => {
-      this.eventTarget.removeEventListener(
-        "afterchange",
-        afterChangeListener as EventListener,
-      );
-      this.eventListeners.afterChange.delete(afterChangeListener);
-    };
-  }
-
-  /**
-   * @returns New LitSignal instance wrapping this subscription.
-   */
-  litSignal(): LitSignal<DocType, SubscriptionDocType> {
-    return new LitSignal(this);
+    return this.addEventListener("afterchange", afterChangeListener);
   }
 }

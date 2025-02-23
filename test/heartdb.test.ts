@@ -13,12 +13,12 @@ import PouchDB from "pouchdb-node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
-import { Subscription } from "../src";
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
 import { Document } from "../src/types";
 
 // Test dependencies.
+import { LiveQuery } from "../src";
 import { TestDoc } from "./test-docs";
 
 // Register memory adapter.
@@ -84,12 +84,12 @@ describe("HeartDB", () => {
       function handleChangeEvent(event: Event) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
         expect(changeEvent.detail.doc?.testField).toEqual("test value");
-        heartDb.eventTarget.removeEventListener("change", handleChangeEvent);
+        heartDb.removeEventListener("change", handleChangeEvent);
         testChannel.close();
         deferred.resolve();
       }
 
-      heartDb.eventTarget.addEventListener("change", handleChangeEvent);
+      heartDb.addEventListener("change", handleChangeEvent);
 
       testChannel.postMessage(testChange);
 
@@ -314,26 +314,26 @@ describe("HeartDB", () => {
     });
   });
 
-  describe("subscription()", () => {
-    it("should create a Subscription instance", async () => {
+  describe("liveQuery()", () => {
+    it("should create a LiveQuery instance", async () => {
       const heartDb = new HeartDB(
-        new PouchDB("TEST_subscription", { adapter: "memory" }),
+        new PouchDB("TEST_liveQuery", { adapter: "memory" }),
       );
-      const subscription = await heartDb.subscription();
-      expect(subscription).toBeDefined();
-      expect(subscription).toBeInstanceOf(Subscription);
+      const liveQuery = await heartDb.liveQuery();
+      expect(liveQuery).toBeDefined();
+      expect(liveQuery).toBeInstanceOf(LiveQuery);
       heartDb.close();
     });
 
     it("should pass optional query", async () => {
       const heartDb = new HeartDB(
-        new PouchDB("TEST_subscription", { adapter: "memory" }),
+        new PouchDB("TEST_liveQuery", { adapter: "memory" }),
       );
       const query = { selector: { testField: "test value" } };
-      const subscription = await heartDb.subscription(query);
-      expect(subscription).toBeDefined();
-      expect(subscription).toBeInstanceOf(Subscription);
-      expect(subscription.query).toBe(query);
+      const liveQuery = await heartDb.liveQuery(query);
+      expect(liveQuery).toBeDefined();
+      expect(liveQuery).toBeInstanceOf(LiveQuery);
+      expect(liveQuery.query).toBe(query);
       heartDb.close();
     });
   });

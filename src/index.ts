@@ -7,6 +7,7 @@
  */
 
 import { HeartDB } from "./heartdb";
-import { Subscription } from "./subscription";
+import { LiveDoc } from "./live-doc";
+import { LiveQuery } from "./live-query";
 
-export { HeartDB, Subscription };
+export { HeartDB, LiveDoc, LiveQuery };
