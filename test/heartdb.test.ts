@@ -84,12 +84,12 @@ describe("HeartDB", () => {
       function handleChangeEvent(event: Event) {
         const changeEvent = event as ChangeEvent<typeof testDoc>;
         expect(changeEvent.detail.doc?.testField).toEqual("test value");
-        heartDb.eventTarget.removeEventListener("change", handleChangeEvent);
+        heartDb.removeEventListener("change", handleChangeEvent);
         testChannel.close();
         deferred.resolve();
       }
 
-      heartDb.eventTarget.addEventListener("change", handleChangeEvent);
+      heartDb.addEventListener("change", handleChangeEvent);
 
       testChannel.postMessage(testChange);
 

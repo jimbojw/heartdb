@@ -7,6 +7,7 @@
  */
 
 // Internal dependencies.
+import { CloseableEventTarget } from "./closeable-event-target";
 import { InternalError } from "./errors";
 import {
   ChangeEvent,
@@ -28,18 +29,15 @@ const BROADTAST_CHANNEL_NAME_PREFIX = "heartdb_";
  * one execution context (e.g. tab) are detected in all other contexts.
  *
  * @template DocType Base type of documents stored in the HeartDB.
+ * @emits change When a document changes.
  */
-export class HeartDB<DocType extends Document = Document> {
+export class HeartDB<
+  DocType extends Document = Document,
+> extends CloseableEventTarget {
   /**
    * PouchDB database instance wrapped by HeartDB.
    */
   readonly pouchDb: PouchDB.Database<DocType>;
-
-  /**
-   * Event emitter for change events.
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
-   */
-  readonly eventTarget: EventTarget;
 
   /**
    * Channel name used for inter-instance communication.
@@ -71,26 +69,20 @@ export class HeartDB<DocType extends Document = Document> {
   ) => void;
 
   /**
-   * Set of change event listeners registered with `onChange()`.
-   */
-  private readonly changeEventListeners = new Set<
-    ChangeEventListener<DocType>
-  >();
-
-  /**
    * @param pouchDb PouchDB instance to wrap.
    */
   constructor(pouchDb: PouchDB.Database<DocType>) {
+    super();
+
     // Ensure that our pouchDb object has the pouchdb-find plugin methods.
     this.pouchDb = wrapWithFindPlugin(pouchDb);
 
-    this.eventTarget = new EventTarget();
     this.channelName = `${BROADTAST_CHANNEL_NAME_PREFIX}${this.pouchDb.name}`;
 
     // Handle all incoming change messages.
     this.channel = new BroadcastChannel(this.channelName);
     this.channelEventListener = (messageEvent) => {
-      this.eventTarget.dispatchEvent(new ChangeEvent(messageEvent.data));
+      this.dispatchEvent(new ChangeEvent(messageEvent.data));
     };
     this.channel.onmessage = this.channelEventListener;
 
@@ -104,7 +96,7 @@ export class HeartDB<DocType extends Document = Document> {
     // Reflect PouchDB changes to channel, and emit.
     this.dbChangeEventListener = (change) => {
       this.channel.postMessage(change);
-      this.eventTarget.dispatchEvent(new ChangeEvent(change));
+      this.dispatchEvent(new ChangeEvent(change));
     };
     this.changes.on(
       "change",
@@ -118,16 +110,17 @@ export class HeartDB<DocType extends Document = Document> {
    * Close all connections and remove all listeners.
    */
   close() {
+    if (this.closed) {
+      return;
+    }
+
     this.channel.onmessage = null;
     this.channel.close();
 
     this.changes.removeListener("change", this.dbChangeEventListener);
     this.changes.cancel();
 
-    for (const listener of this.changeEventListeners) {
-      this.eventTarget.removeEventListener("change", listener as EventListener);
-      this.changeEventListeners.delete(listener);
-    }
+    super.close();
   }
 
   /**
@@ -135,16 +128,10 @@ export class HeartDB<DocType extends Document = Document> {
    * @param listener Callback function to invoke on change.
    * @return Function to call to unsubscribe.
    */
-  onChange(listener: ChangeEventListener<DocType>): () => void {
-    if (this.changeEventListeners.has(listener)) {
-      throw new Error("Listener already registered.");
-    }
-    this.changeEventListeners.add(listener);
-    this.eventTarget.addEventListener("change", listener as EventListener);
-    return () => {
-      this.eventTarget.removeEventListener("change", listener as EventListener);
-      this.changeEventListeners.delete(listener);
-    };
+  onChange<ChangeDocType extends DocType>(
+    callback: ChangeEventListener<ChangeDocType>,
+  ): () => void {
+    return this.addEventListener("change", callback);
   }
 
   /**
