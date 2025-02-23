@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Tests for Subscription's onEnter() method.
+ * @fileoverview Tests for LiveQuery's onEnter() method.
  */
 
 // External dependencies.
@@ -12,15 +12,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
-import { Subscription } from "../src/subscription";
+import { LiveQuery } from "../src/live-query";
 
 // Test dependencies.
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
-describe("Subscription::onEnter()", () => {
+describe("LiveQuery::onEnter()", () => {
   const testDbFactory = new TestDbFactory({
-    dbNamePrefix: "TEST_Subscription_onEnter",
+    dbNamePrefix: "TEST_LiveQuery_onEnter",
     initialDocs: TEST_DOCS_0100,
   });
 
@@ -35,12 +35,12 @@ describe("Subscription::onEnter()", () => {
   });
 
   it("should find few matching docs", async () => {
-    const subscription = new Subscription(heartDb);
-    expect(subscription.query).toBeUndefined();
+    const liveQuery = new LiveQuery(heartDb);
+    expect(liveQuery.query).toBeUndefined();
 
     let callCount = 0;
 
-    const disconnect = subscription.onEnter((enterEvent) => {
+    const disconnect = liveQuery.onEnter((enterEvent) => {
       callCount++;
 
       const docs = enterEvent.detail;
@@ -62,20 +62,20 @@ describe("Subscription::onEnter()", () => {
       },
     };
 
-    await subscription.setQuery(query);
+    await liveQuery.setQuery(query);
 
-    expect(subscription.query).toBe(query);
+    expect(liveQuery.query).toBe(query);
     expect(callCount).toBe(1);
     disconnect();
   });
 
   it("should find docs up to limit", async () => {
-    const subscription = new Subscription(heartDb);
-    expect(subscription.query).toBeUndefined();
+    const liveQuery = new LiveQuery(heartDb);
+    expect(liveQuery.query).toBeUndefined();
 
     let callCount = 0;
 
-    const disconnect = subscription.onEnter((enterEvent) => {
+    const disconnect = liveQuery.onEnter((enterEvent) => {
       callCount++;
 
       const docs = enterEvent.detail;
@@ -98,8 +98,8 @@ describe("Subscription::onEnter()", () => {
       limit: 50,
     };
 
-    await subscription.setQuery(query);
-    expect(subscription.query).toBe(query);
+    await liveQuery.setQuery(query);
+    expect(liveQuery.query).toBe(query);
     expect(callCount).toBe(1);
     disconnect();
   });
@@ -111,12 +111,12 @@ describe("Subscription::onEnter()", () => {
     // request, which will return no documents and thus not trigger a 6th
     // onEnter() call.
 
-    const subscription = new Subscription(heartDb);
-    expect(subscription.query).toBeUndefined();
+    const liveQuery = new LiveQuery(heartDb);
+    expect(liveQuery.query).toBeUndefined();
 
     let callCount = 0;
 
-    const disconnect = subscription.onEnter((enterEvent) => {
+    const disconnect = liveQuery.onEnter((enterEvent) => {
       callCount++;
 
       const docs = enterEvent.detail;
@@ -135,8 +135,8 @@ describe("Subscription::onEnter()", () => {
       limit: 10,
     };
 
-    await subscription.setQuery(query);
-    expect(subscription.query).toBe(query);
+    await liveQuery.setQuery(query);
+    expect(liveQuery.query).toBe(query);
     expect(callCount).toBe(5);
     disconnect();
   });
@@ -146,13 +146,13 @@ describe("Subscription::onEnter()", () => {
     // adds a new doc that matches the query. We expect the onEnter() callback
     // to be invoked only once because the initial query finds no documents.
 
-    const subscription = new Subscription(heartDb);
-    expect(subscription.query).toBeUndefined();
+    const liveQuery = new LiveQuery(heartDb);
+    expect(liveQuery.query).toBeUndefined();
 
     const deferred = pDefer<void>();
 
     let callCount = 0;
-    const disconnect = subscription.onEnter((enterEvent) => {
+    const disconnect = liveQuery.onEnter((enterEvent) => {
       callCount++;
       const docs = enterEvent.detail;
       expect(Object.keys(docs).length).toBe(1);
@@ -164,7 +164,7 @@ describe("Subscription::onEnter()", () => {
       selector: { _id: { $gte: "TEST_DOC_0100" } },
     };
 
-    await subscription.setQuery(query);
+    await liveQuery.setQuery(query);
 
     await heartDb.pouchDb.put({
       _id: "TEST_DOC_0101",

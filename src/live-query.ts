@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview HeartDB query subscription object.
+ * @fileoverview HeartDB live query object.
  */
 
 // Internal dependencies.
@@ -24,24 +24,24 @@ import { HeartDB } from "./heartdb";
 import { Docs, Document, Existing } from "./types";
 
 /**
- * A Subscription follows a query and tracks documents that enter, update, or
- * exit.
+ * A LiveQuery follows a query and tracks documents that enter, update, or exit.
  *
  * Usage:
  *
  * ```
- *   // Create subscription. Initially disconnected.
- *   const subscription = new Subscription(heartDb);
+ *   // Create live query. Initially disconnected.
+ *   const liveQuery = new LiveQuery(heartDb);
  *
- *   // Subscribe to subscription events. Returned value is a callback function
+ *   // Subscribe to live query events. Returned value is a callback function
  *   // to disconnect the event listener.
- *   const disconnect = subscription.onEnter((enterEvent) => {
+ *   const disconnect = liveQuery.onEnter((enterEvent) => {
  *     // Handle entering documents in enterEvent.detail.
  *   });
  *
- *   // Setting the query will connect the subscription. Returned promise will
- *   // resolve when the initial query is finished.
- *   await subscription.setQuery({
+ *   // Setting the query will cause the LiveQuery object to begin listening for
+ *   // changes on HeartDB. Returned promise will resolve when the initial query
+ *   // is finished.
+ *   await liveQuery.setQuery({
  *    selector: { type: "thing" },
  *   });
  *
@@ -50,8 +50,11 @@ import { Docs, Document, Existing } from "./types";
  *   // Disconnect the event listener.
  *   disconnect();
  *
- *   // Stop subscription from following the query by setting it to undefined.
- *   await subscription.setQuery(undefined);
+ *   // Stop LiveQuery from following the query by setting it to undefined.
+ *   await liveQuery.setQuery(undefined);
+ *
+ *   // Close connection (stop following the query). Irreversible.
+ *   liveQuery.close();
  * ```
  *
  * @emits enter When a document enters the result set.
@@ -59,12 +62,12 @@ import { Docs, Document, Existing } from "./types";
  * @emits exit When a document exits the result set.
  * @emits afterchange After any enter/update/exit events.
  * @template DocType Type of document in the HeartDB.
- * @template SubscriptionDocType Type of document in the Subscription.
+ * @template LiveQueryDocType Type of document returned by query.
  * @see https://pouchdb.com/guides/mango-queries.html
  */
-export class Subscription<
+export class LiveQuery<
   DocType extends Document = Document,
-  SubscriptionDocType extends DocType = DocType,
+  LiveQueryDocType extends DocType = DocType,
 > extends CloseableEventTarget {
   /**
    * HeartDB instance to query and subscribe to.
@@ -74,12 +77,12 @@ export class Subscription<
   /**
    * PouchDB query object. If unset, then subscription is disconnected.
    */
-  query?: PouchDB.Find.FindRequest<SubscriptionDocType>;
+  query?: PouchDB.Find.FindRequest<LiveQueryDocType>;
 
   /**
    * Record of query-matching documents.
    */
-  readonly docs: Docs<SubscriptionDocType> = {};
+  readonly docs: Docs<LiveQueryDocType> = {};
 
   /**
    * Disconnect function for HeartDB changes feed (when connected).
@@ -118,7 +121,7 @@ export class Subscription<
    * documents.
    * @param query Query to find and follow.
    */
-  async setQuery(query?: PouchDB.Find.FindRequest<SubscriptionDocType>) {
+  async setQuery(query?: PouchDB.Find.FindRequest<LiveQueryDocType>) {
     if (query === this.query) {
       // Query is already set. Nothing to do.
       return;
@@ -148,7 +151,7 @@ export class Subscription<
         return;
       }
 
-      const docs = results.docs as (SubscriptionDocType & Existing)[];
+      const docs = results.docs as (LiveQueryDocType & Existing)[];
 
       skip += docs.length;
 
@@ -173,7 +176,7 @@ export class Subscription<
    * @returns Change event listener.
    */
   createQueryListener(
-    query: PouchDB.Find.FindRequest<SubscriptionDocType>,
+    query: PouchDB.Find.FindRequest<LiveQueryDocType>,
   ): ChangeEventListener<DocType> {
     return async (changeEvent) => {
       if (this.closed || this.query !== query) {
@@ -221,7 +224,7 @@ export class Subscription<
         );
       }
 
-      const responseDoc = response.docs[0] as SubscriptionDocType & Existing;
+      const responseDoc = response.docs[0] as LiveQueryDocType & Existing;
 
       // If the response doc's id doesn't match the changed doc, then something
       // went wrong.
@@ -236,7 +239,7 @@ export class Subscription<
       // If we don't already have a doc with this id, then it's entering.
       if (!existingDoc) {
         this.dispatchEvent(
-          new EnterEvent<SubscriptionDocType>({ [id]: responseDoc }),
+          new EnterEvent<LiveQueryDocType>({ [id]: responseDoc }),
         );
         this.docs[id] = responseDoc;
         this.dispatchEvent(new AfterChangeEvent(this.docs));
@@ -251,7 +254,7 @@ export class Subscription<
 
       // Otherwise, the document has been updated.
       this.dispatchEvent(
-        new UpdateEvent<SubscriptionDocType>({ [id]: responseDoc }),
+        new UpdateEvent<LiveQueryDocType>({ [id]: responseDoc }),
       );
       this.docs[id] = responseDoc;
       this.dispatchEvent(new AfterChangeEvent(this.docs));
@@ -263,20 +266,17 @@ export class Subscription<
    * @param incomingDocs List of docs to replace the current set.
    * @param replace Whether to replace the current set of docs.
    */
-  processDocs(
-    incomingDocs: (SubscriptionDocType & Existing)[],
-    replace: boolean,
-  ) {
-    const enterDocs: Docs<SubscriptionDocType> = {};
+  processDocs(incomingDocs: (LiveQueryDocType & Existing)[], replace: boolean) {
+    const enterDocs: Docs<LiveQueryDocType> = {};
     let enterCount = 0;
 
-    const updateDocs: Docs<SubscriptionDocType> = {};
+    const updateDocs: Docs<LiveQueryDocType> = {};
     let updateCount = 0;
 
-    const exitDocs: Docs<SubscriptionDocType> = {};
+    const exitDocs: Docs<LiveQueryDocType> = {};
     let exitCount = 0;
 
-    const unchangedDocs: Docs<SubscriptionDocType> = {};
+    const unchangedDocs: Docs<LiveQueryDocType> = {};
 
     // Categorize incoming documents as enter/update/exit/unchanged.
     for (const doc of incomingDocs) {
@@ -328,13 +328,13 @@ export class Subscription<
 
     // Emit exit, enter and update events.
     if (exitCount) {
-      this.dispatchEvent(new ExitEvent<SubscriptionDocType>(exitDocs));
+      this.dispatchEvent(new ExitEvent<LiveQueryDocType>(exitDocs));
     }
     if (enterCount) {
-      this.dispatchEvent(new EnterEvent<SubscriptionDocType>(enterDocs));
+      this.dispatchEvent(new EnterEvent<LiveQueryDocType>(enterDocs));
     }
     if (updateCount) {
-      this.dispatchEvent(new UpdateEvent<SubscriptionDocType>(updateDocs));
+      this.dispatchEvent(new UpdateEvent<LiveQueryDocType>(updateDocs));
     }
 
     // Update the internal document record by adding/removing documents.
@@ -349,7 +349,7 @@ export class Subscription<
     }
 
     // Emit a catch-all afterchange event.
-    this.dispatchEvent(new AfterChangeEvent<SubscriptionDocType>(this.docs));
+    this.dispatchEvent(new AfterChangeEvent<LiveQueryDocType>(this.docs));
   }
 
   /**
@@ -357,7 +357,7 @@ export class Subscription<
    * @param enterListener Enter event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onEnter(enterListener: EnterEventListener<SubscriptionDocType>): () => void {
+  onEnter(enterListener: EnterEventListener<LiveQueryDocType>): () => void {
     return this.addEventListener("enter", enterListener);
   }
 
@@ -366,9 +366,7 @@ export class Subscription<
    * @param updateListener Update event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onUpdate(
-    updateListener: UpdateEventListener<SubscriptionDocType>,
-  ): () => void {
+  onUpdate(updateListener: UpdateEventListener<LiveQueryDocType>): () => void {
     return this.addEventListener("update", updateListener);
   }
 
@@ -377,7 +375,7 @@ export class Subscription<
    * @param exitListener Exit event listener to add.
    * @returns Disconnect function to unsubscribe the listener.
    */
-  onExit(exitListener: ExitEventListener<SubscriptionDocType>): () => void {
+  onExit(exitListener: ExitEventListener<LiveQueryDocType>): () => void {
     return this.addEventListener("exit", exitListener);
   }
 
@@ -388,7 +386,7 @@ export class Subscription<
    * @returns Disconnect function to unsubscribe the listener.
    */
   onAfterChange(
-    afterChangeListener: AfterChangeEventListener<SubscriptionDocType>,
+    afterChangeListener: AfterChangeEventListener<LiveQueryDocType>,
   ): () => void {
     return this.addEventListener("afterchange", afterChangeListener);
   }

@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Tests for Subscription's onAfterChange() method.
+ * @fileoverview Tests for LiveQuery's onAfterChange() method.
  */
 
 // External dependencies.
@@ -12,15 +12,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
-import { Subscription } from "../src/subscription";
+import { LiveQuery } from "../src/live-query";
 
 // Test dependencies.
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
-describe("Subscription::onAfterChange()", () => {
+describe("LiveQuery::onAfterChange()", () => {
   const testDbFactory = new TestDbFactory({
-    dbNamePrefix: "TEST_Subscription_onAfterChange",
+    dbNamePrefix: "TEST_LiveQuery_onAfterChange",
     initialDocs: TEST_DOCS_0100,
   });
 
@@ -38,7 +38,7 @@ describe("Subscription::onAfterChange()", () => {
     // This test modifies test docs 98 and 99 and expects the onUpdate()
     // callback to be invoked once for each.
 
-    const subscription = new Subscription(heartDb);
+    const liveQuery = new LiveQuery(heartDb);
 
     let callCount = 0;
     const initialDeferred = pDefer<void>();
@@ -46,7 +46,7 @@ describe("Subscription::onAfterChange()", () => {
     const modifiedDeferred = pDefer<void>();
     const recreationDeferred = pDefer<void>();
 
-    const disconnect = subscription.onAfterChange((afterChangeEvent) => {
+    const disconnect = liveQuery.onAfterChange((afterChangeEvent) => {
       callCount++;
       const docs = afterChangeEvent.detail;
 
@@ -94,7 +94,7 @@ describe("Subscription::onAfterChange()", () => {
       limit: 30,
     };
 
-    await subscription.setQuery(query);
+    await liveQuery.setQuery(query);
 
     // Wait for initial change.
     await initialDeferred.promise;

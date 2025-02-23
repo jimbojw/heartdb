@@ -3,7 +3,7 @@
  */
 
 /**
- * @fileoverview Tests for Subscription's onUpdate() method.
+ * @fileoverview Tests for LiveQuery's onExit() method.
  */
 
 // External dependencies.
@@ -12,15 +12,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Internal dependencies.
 import { HeartDB } from "../src/heartdb";
-import { Subscription } from "../src/subscription";
+import { LiveQuery } from "../src/live-query";
 
 // Test dependencies.
 import { TestDbFactory } from "./test-db-factory";
 import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
-describe("Subscription::onUpdate()", () => {
+describe("LiveQuery::onExit()", () => {
   const testDbFactory = new TestDbFactory({
-    dbNamePrefix: "TEST_Subscription_onUpdate",
+    dbNamePrefix: "TEST_LiveQuery_onExit",
     initialDocs: TEST_DOCS_0100,
   });
 
@@ -34,15 +34,15 @@ describe("Subscription::onUpdate()", () => {
     heartDb.close();
   });
 
-  it("should detect updated docs", async () => {
+  it("should detect deleted docs", async () => {
     // This test modifies test docs 98 and 99 and expects the onUpdate()
     // callback to be invoked once for each.
 
-    const subscription = new Subscription(heartDb);
+    const liveQuery = new LiveQuery(heartDb);
 
     // Track call to entering documents.
     const enterDeferred = pDefer<void>();
-    const enterDisconnect = subscription.onEnter((enterEvent) => {
+    const enterDisconnect = liveQuery.onEnter((enterEvent) => {
       // Expect initial query to find documents 98 and 99.
       const docs = enterEvent.detail;
       expect(Object.keys(docs).length).toBe(2);
@@ -56,33 +56,35 @@ describe("Subscription::onUpdate()", () => {
       enterDisconnect();
     });
 
-    let updateCallCount = 0;
-    const updateDeferred = pDefer<void>();
+    let exitCallCount = 0;
+    const exitDeferred = pDefer<void>();
 
-    const updateDisconnect = subscription.onUpdate((updateEvent) => {
-      updateCallCount++;
-      const docs = updateEvent.detail;
+    const exitDisconnect = liveQuery.onExit((exitEvent) => {
+      exitCallCount++;
+      const exitingDocs = exitEvent.detail;
 
-      expect(Object.keys(docs).length).toBe(1);
+      expect(Object.keys(exitingDocs).length).toBe(1);
 
-      const doc = docs[Object.keys(docs)[0]];
+      const doc = exitingDocs[Object.keys(exitingDocs)[0]];
 
-      switch (updateCallCount) {
+      switch (exitCallCount) {
         case 1:
-          // First update call should find modified doc 98.
+          // First update call should find deleted doc 98.
+          expect(doc._id).toBe("TEST_DOC_0098");
           expect(doc._rev).toMatch(/^2-/);
-          expect(doc.testField).toBe("updated value 98");
+          expect(doc._deleted).toBe(true);
           break;
         case 2:
           // Second and final update call should find updated doc 99.
+          expect(doc._id).toBe("TEST_DOC_0099");
           expect(doc._rev).toMatch(/^2-/);
-          expect(doc.testField).toBe("updated value 99");
-          updateDeferred.resolve();
-          updateDisconnect();
+          expect(doc._deleted).toBe(true);
+          exitDeferred.resolve();
+          exitDisconnect();
           break;
         default:
           // No further calls expected.
-          throw new Error("Unexpected call to onUpdate");
+          throw new Error("Unexpected call to onExit");
       }
     });
 
@@ -90,25 +92,25 @@ describe("Subscription::onUpdate()", () => {
       selector: { _id: { $gte: "TEST_DOC_0098" } },
     };
 
-    await subscription.setQuery(query);
+    await liveQuery.setQuery(query);
 
     // Wait for the entering docs to be notified.
     await enterDeferred.promise;
 
-    // Modify TEST_DOC_098.
+    // Delete TEST_DOC_098.
     const testDoc98Orig = await heartDb.pouchDb.get("TEST_DOC_0098");
     await heartDb.pouchDb.put({
       ...testDoc98Orig,
-      testField: "updated value 98",
+      _deleted: true,
     });
 
     // Modify TEST_DOC_099.
     const testDoc99Orig = await heartDb.pouchDb.get("TEST_DOC_0099");
     await heartDb.pouchDb.put({
       ...testDoc99Orig,
-      testField: "updated value 99",
+      _deleted: true,
     });
 
-    await updateDeferred.promise;
+    await exitDeferred.promise;
   });
 });

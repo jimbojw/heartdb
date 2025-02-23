@@ -15,7 +15,7 @@ import {
   ChangesResponseChange,
 } from "./events";
 import { LiveDoc } from "./live-doc";
-import { Subscription } from "./subscription";
+import { LiveQuery } from "./live-query";
 import { Document, Existing, UpdateCallbackFunction } from "./types";
 import { wrapWithFindPlugin } from "./wrap-with-find-plugin";
 
@@ -295,20 +295,21 @@ export class HeartDB<
   }
 
   /**
-   * Create a new subscription instance. If a query is provided, it will be set
-   * on the subscription, and the Promise returned will not resolve until the
+   * Create a new LiveQuery instance. If a query is provided, it will be set on
+   * the LiveQuery, and the Promise returned will not resolve until the
    * `setQuery()` is finished finding initial documents.
    * @param query Optional query to filter subscription results.
-   * @returns A new subscription instance bound to this HeartDB instance.
+   * @returns A new LiveQuery instance bound to this HeartDB instance.
+   * @template LiveQueryDocType Type of documents in the subscription.
    */
-  async subscription<SubscriptionDocType extends DocType = DocType>(
-    query?: PouchDB.Find.FindRequest<SubscriptionDocType>,
-  ): Promise<Subscription<DocType, SubscriptionDocType>> {
-    const subscription = new Subscription<DocType, SubscriptionDocType>(this);
+  async liveQuery<LiveQueryDocType extends DocType = DocType>(
+    query?: PouchDB.Find.FindRequest<LiveQueryDocType>,
+  ): Promise<LiveQuery<DocType, LiveQueryDocType>> {
+    const liveQuery = new LiveQuery<DocType, LiveQueryDocType>(this);
     if (query) {
-      await subscription.setQuery(query);
+      await liveQuery.setQuery(query);
     }
-    return subscription;
+    return liveQuery;
   }
 
   /**

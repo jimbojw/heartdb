@@ -37,12 +37,12 @@ export type ChangeEventListener<DocType extends Document> = (
 ) => void;
 
 /**
- * Event dispatched by a subscription when documents enter the result set.
+ * Event dispatched by a LiveQuery when documents enter the result set.
  */
-export class EnterEvent<
-  SubscriptionDocType extends Document,
-> extends CustomEvent<Docs<SubscriptionDocType>> {
-  constructor(detail: Docs<SubscriptionDocType>) {
+export class EnterEvent<LiveQueryDocType extends Document> extends CustomEvent<
+  Docs<LiveQueryDocType>
+> {
+  constructor(detail: Docs<LiveQueryDocType>) {
     super("enter", { detail });
   }
 }
@@ -55,12 +55,12 @@ export type EnterEventListener<DocType extends Document> = (
 ) => void;
 
 /**
- * Event dispatched by a subscription when documents are updated.
+ * Event dispatched by a LiveQuery when documents are updated.
  */
-export class UpdateEvent<
-  SubscriptionDocType extends Document,
-> extends CustomEvent<Docs<SubscriptionDocType>> {
-  constructor(detail: Docs<SubscriptionDocType>) {
+export class UpdateEvent<LiveQueryDocType extends Document> extends CustomEvent<
+  Docs<LiveQueryDocType>
+> {
+  constructor(detail: Docs<LiveQueryDocType>) {
     super("update", { detail });
   }
 }
@@ -73,12 +73,12 @@ export type UpdateEventListener<DocType extends Document> = (
 ) => void;
 
 /**
- * Event dispatched by a subscription when documents leave the result set.
+ * Event dispatched by a LiveQuery when documents leave the result set.
  */
-export class ExitEvent<
-  SubscriptionDocType extends Document,
-> extends CustomEvent<Docs<SubscriptionDocType>> {
-  constructor(detail: Docs<SubscriptionDocType>) {
+export class ExitEvent<LiveQueryDocType extends Document> extends CustomEvent<
+  Docs<LiveQueryDocType>
+> {
+  constructor(detail: Docs<LiveQueryDocType>) {
     super("exit", { detail });
   }
 }
@@ -91,12 +91,12 @@ export type ExitEventListener<DocType extends Document> = (
 ) => void;
 
 /**
- * Event dispatched by a subscription after any change occurs.
+ * Event dispatched by a LiveQuery after any change occurs.
  */
 export class AfterChangeEvent<
-  SubscriptionDocType extends Document,
-> extends CustomEvent<Docs<SubscriptionDocType>> {
-  constructor(detail: Docs<SubscriptionDocType>) {
+  LiveQueryDocType extends Document,
+> extends CustomEvent<Docs<LiveQueryDocType>> {
+  constructor(detail: Docs<LiveQueryDocType>) {
     super("afterchange", { detail });
   }
 }

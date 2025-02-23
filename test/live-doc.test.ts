@@ -18,7 +18,7 @@ import { TEST_DOCS_0100, TestDoc } from "./test-docs";
 
 describe("LiveDoc", () => {
   const testDbFactory = new TestDbFactory({
-    dbNamePrefix: "TEST_Subscription_onAfterChange",
+    dbNamePrefix: "TEST_LiveQuery_onAfterChange",
     initialDocs: TEST_DOCS_0100,
   });
 
