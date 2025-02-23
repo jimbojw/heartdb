@@ -11,7 +11,7 @@ export class ChangeEvent extends CustomEvent {
     }
 }
 /**
- * Event dispatched by a subscription when documents enter the result set.
+ * Event dispatched by a LiveQuery when documents enter the result set.
  */
 export class EnterEvent extends CustomEvent {
     constructor(detail) {
@@ -19,7 +19,7 @@ export class EnterEvent extends CustomEvent {
     }
 }
 /**
- * Event dispatched by a subscription when documents are updated.
+ * Event dispatched by a LiveQuery when documents are updated.
  */
 export class UpdateEvent extends CustomEvent {
     constructor(detail) {
@@ -27,7 +27,7 @@ export class UpdateEvent extends CustomEvent {
     }
 }
 /**
- * Event dispatched by a subscription when documents leave the result set.
+ * Event dispatched by a LiveQuery when documents leave the result set.
  */
 export class ExitEvent extends CustomEvent {
     constructor(detail) {
@@ -35,10 +35,18 @@ export class ExitEvent extends CustomEvent {
     }
 }
 /**
- * Event dispatched by a subscription after any change occurs.
+ * Event dispatched by a LiveQuery after any change occurs.
  */
 export class AfterChangeEvent extends CustomEvent {
     constructor(detail) {
         super("afterchange", { detail });
+    }
+}
+/**
+ * Event dispatched by a LiveDoc when its doc is set.
+ */
+export class SetEvent extends CustomEvent {
+    constructor(detail) {
+        super("set", { detail });
     }
 }

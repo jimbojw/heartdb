@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/jimbojw/heartdb/compare/v1.3.0...v1.4.0) (2025-02-23)
+
+
+### Features
+
+* Implement LiveDoc. ([7ddf430](https://github.com/jimbojw/heartdb/commit/7ddf430ec9a18ceb890dbb9a5868275e2f1072ee))
+
 # [1.3.0](https://github.com/jimbojw/heartdb/compare/v1.2.0...v1.3.0) (2025-02-21)
 
 

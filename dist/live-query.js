@@ -11,31 +11,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 /**
- * @fileoverview HeartDB query subscription object.
+ * @fileoverview HeartDB live query object.
  */
 // Internal dependencies.
+import { CloseableEventTarget } from "./closeable-event-target";
 import { InternalError } from "./errors";
 import { AfterChangeEvent, EnterEvent, ExitEvent, UpdateEvent, } from "./events";
-import { LitSignal } from "./lit-signal";
 /**
- * A Subscription follows a query and tracks documents that enter, update, or
- * exit.
+ * A LiveQuery follows a query and tracks documents that enter, update, or exit.
  *
  * Usage:
  *
  * ```
- *   // Create subscription. Initially disconnected.
- *   const subscription = new Subscription(heartDb);
+ *   // Create live query. Initially disconnected.
+ *   const liveQuery = new LiveQuery(heartDb);
  *
- *   // Subscribe to subscription events. Returned value is a callback function
+ *   // Subscribe to live query events. Returned value is a callback function
  *   // to disconnect the event listener.
- *   const disconnect = subscription.onEnter((enterEvent) => {
+ *   const disconnect = liveQuery.onEnter((enterEvent) => {
  *     // Handle entering documents in enterEvent.detail.
  *   });
  *
- *   // Setting the query will connect the subscription. Returned promise will
- *   // resolve when the initial query is finished.
- *   await subscription.setQuery({
+ *   // Setting the query will cause the LiveQuery object to begin listening for
+ *   // changes on HeartDB. Returned promise will resolve when the initial query
+ *   // is finished.
+ *   await liveQuery.setQuery({
  *    selector: { type: "thing" },
  *   });
  *
@@ -44,37 +44,45 @@ import { LitSignal } from "./lit-signal";
  *   // Disconnect the event listener.
  *   disconnect();
  *
- *   // Stop subscription from following the query by setting it to undefined.
- *   await subscription.setQuery(undefined);
+ *   // Stop LiveQuery from following the query by setting it to undefined.
+ *   await liveQuery.setQuery(undefined);
+ *
+ *   // Close connection (stop following the query). Irreversible.
+ *   liveQuery.close();
  * ```
  *
+ * @emits enter When a document enters the result set.
+ * @emits update When a document updates in the result set.
+ * @emits exit When a document exits the result set.
+ * @emits afterchange After any enter/update/exit events.
  * @template DocType Type of document in the HeartDB.
- * @template SubscriptionDocType Type of document in the Subscription.
+ * @template LiveQueryDocType Type of document returned by query.
  * @see https://pouchdb.com/guides/mango-queries.html
  */
-export class Subscription {
+export class LiveQuery extends CloseableEventTarget {
     /**
      * @param heartDb HeartDB instance to use for communication.
      */
     constructor(heartDb) {
+        super();
         /**
          * Record of query-matching documents.
          */
         this.docs = {};
-        /**
-         * Event target for dispatching events.
-         */
-        this.eventTarget = new EventTarget();
-        /**
-         * Event listeners set by respective on*() methods.
-         */
-        this.eventListeners = Object.freeze({
-            enter: new Set(),
-            update: new Set(),
-            exit: new Set(),
-            afterChange: new Set(),
-        });
         this.heartDb = heartDb;
+        const closeDisconnect = heartDb.addEventListener("close", () => {
+            this.close();
+            closeDisconnect();
+        });
+    }
+    close() {
+        var _a;
+        if (this.closed) {
+            return;
+        }
+        (_a = this.disconnect) === null || _a === void 0 ? void 0 : _a.call(null);
+        this.disconnect = undefined;
+        super.close();
     }
     /**
      * Set the query to follow. This is an asynchronous function which will return
@@ -109,7 +117,7 @@ export class Subscription {
             while (!done) {
                 requestCount++;
                 const results = yield this.heartDb.pouchDb.find(Object.assign(Object.assign({}, query), { skip }));
-                if (this.query !== query) {
+                if (this.closed || this.query !== query) {
                     // Preempted by another call.
                     return;
                 }
@@ -135,7 +143,7 @@ export class Subscription {
      */
     createQueryListener(query) {
         return (changeEvent) => __awaiter(this, void 0, void 0, function* () {
-            if (this.query !== query) {
+            if (this.closed || this.query !== query) {
                 // Preepmeted. Should have been disconnected.
                 throw new InternalError("Unexpected change event from replaced query");
             }
@@ -143,25 +151,25 @@ export class Subscription {
             // If the document is in our results and has been deleted, then we can
             // process the deletion as is.
             if (id in this.docs && deleted) {
-                this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+                this.dispatchEvent(new ExitEvent({ id: changedDoc }));
                 delete this.docs[id];
-                this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+                this.dispatchEvent(new AfterChangeEvent(this.docs));
                 return;
             }
             // Otherwise, we need to attempt to fetch the document using a modified,
             // id-specific query to see if it matches.
             const response = yield this.heartDb.pouchDb.find(Object.assign(Object.assign({}, query), { selector: Object.assign(Object.assign({}, query.selector), { _id: changeEvent.detail.id }) }));
             // Recheck query is still live.
-            if (this.query !== query) {
+            if (this.closed || this.query !== query) {
                 // Preepmeted during find request.
                 return;
             }
             // If no docs were returned, then the changed document no longer matches
             // the query and should be removed from the result set.
             if (!response.docs.length) {
-                this.eventTarget.dispatchEvent(new ExitEvent({ id: changedDoc }));
+                this.dispatchEvent(new ExitEvent({ id: changedDoc }));
                 delete this.docs[id];
-                this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+                this.dispatchEvent(new AfterChangeEvent(this.docs));
                 return;
             }
             // If more than one doc was returned, then something went wrong.
@@ -177,9 +185,9 @@ export class Subscription {
             const existingDoc = this.docs[id];
             // If we don't already have a doc with this id, then it's entering.
             if (!existingDoc) {
-                this.eventTarget.dispatchEvent(new EnterEvent({ [id]: responseDoc }));
+                this.dispatchEvent(new EnterEvent({ [id]: responseDoc }));
                 this.docs[id] = responseDoc;
-                this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+                this.dispatchEvent(new AfterChangeEvent(this.docs));
                 return;
             }
             // If the response doc's rev matches the existing doc's rev, then there's
@@ -188,9 +196,9 @@ export class Subscription {
                 return;
             }
             // Otherwise, the document has been updated.
-            this.eventTarget.dispatchEvent(new UpdateEvent({ [id]: responseDoc }));
+            this.dispatchEvent(new UpdateEvent({ [id]: responseDoc }));
             this.docs[id] = responseDoc;
-            this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+            this.dispatchEvent(new AfterChangeEvent(this.docs));
         });
     }
     /**
@@ -249,13 +257,13 @@ export class Subscription {
         }
         // Emit exit, enter and update events.
         if (exitCount) {
-            this.eventTarget.dispatchEvent(new ExitEvent(exitDocs));
+            this.dispatchEvent(new ExitEvent(exitDocs));
         }
         if (enterCount) {
-            this.eventTarget.dispatchEvent(new EnterEvent(enterDocs));
+            this.dispatchEvent(new EnterEvent(enterDocs));
         }
         if (updateCount) {
-            this.eventTarget.dispatchEvent(new UpdateEvent(updateDocs));
+            this.dispatchEvent(new UpdateEvent(updateDocs));
         }
         // Update the internal document record by adding/removing documents.
         for (const id in enterDocs) {
@@ -268,7 +276,7 @@ export class Subscription {
             delete this.docs[id];
         }
         // Emit a catch-all afterchange event.
-        this.eventTarget.dispatchEvent(new AfterChangeEvent(this.docs));
+        this.dispatchEvent(new AfterChangeEvent(this.docs));
     }
     /**
      * Listen for entering docs.
@@ -276,15 +284,7 @@ export class Subscription {
      * @returns Disconnect function to unsubscribe the listener.
      */
     onEnter(enterListener) {
-        if (this.eventListeners.enter.has(enterListener)) {
-            throw new Error("Listener already registered");
-        }
-        this.eventListeners.enter.add(enterListener);
-        this.eventTarget.addEventListener("enter", enterListener);
-        return () => {
-            this.eventTarget.removeEventListener("enter", enterListener);
-            this.eventListeners.enter.delete(enterListener);
-        };
+        return this.addEventListener("enter", enterListener);
     }
     /**
      * Listen for updating docs.
@@ -292,15 +292,7 @@ export class Subscription {
      * @returns Disconnect function to unsubscribe the listener.
      */
     onUpdate(updateListener) {
-        if (this.eventListeners.update.has(updateListener)) {
-            throw new Error("Listener already registered");
-        }
-        this.eventListeners.update.add(updateListener);
-        this.eventTarget.addEventListener("update", updateListener);
-        return () => {
-            this.eventTarget.removeEventListener("update", updateListener);
-            this.eventListeners.update.delete(updateListener);
-        };
+        return this.addEventListener("update", updateListener);
     }
     /**
      * Listen for exiting docs.
@@ -308,15 +300,7 @@ export class Subscription {
      * @returns Disconnect function to unsubscribe the listener.
      */
     onExit(exitListener) {
-        if (this.eventListeners.exit.has(exitListener)) {
-            throw new Error("Listener already registered");
-        }
-        this.eventListeners.exit.add(exitListener);
-        this.eventTarget.addEventListener("exit", exitListener);
-        return () => {
-            this.eventTarget.removeEventListener("exit", exitListener);
-            this.eventListeners.exit.delete(exitListener);
-        };
+        return this.addEventListener("exit", exitListener);
     }
     /**
      * Listen for the afterchange event, which is dispatched after
@@ -325,20 +309,6 @@ export class Subscription {
      * @returns Disconnect function to unsubscribe the listener.
      */
     onAfterChange(afterChangeListener) {
-        if (this.eventListeners.afterChange.has(afterChangeListener)) {
-            throw new Error("Listener already registered");
-        }
-        this.eventListeners.afterChange.add(afterChangeListener);
-        this.eventTarget.addEventListener("afterchange", afterChangeListener);
-        return () => {
-            this.eventTarget.removeEventListener("afterchange", afterChangeListener);
-            this.eventListeners.afterChange.delete(afterChangeListener);
-        };
-    }
-    /**
-     * @returns New LitSignal instance wrapping this subscription.
-     */
-    litSignal() {
-        return new LitSignal(this);
+        return this.addEventListener("afterchange", afterChangeListener);
     }
 }

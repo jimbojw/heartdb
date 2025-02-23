@@ -5,5 +5,6 @@
  * @fileoverview HeartDB.
  */
 import { HeartDB } from "./heartdb";
-import { Subscription } from "./subscription";
-export { HeartDB, Subscription };
+import { LiveDoc } from "./live-doc";
+import { LiveQuery } from "./live-query";
+export { HeartDB, LiveDoc, LiveQuery };

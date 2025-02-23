@@ -4,7 +4,7 @@
 /**
  * @fileoverview Custom Events and related types.
  */
-import { Docs, Document } from "./types";
+import { Docs, Document, Existing } from "./types";
 /**
  * Since our change queries always include docs, we extend the
  * ChangesResponseChange type here to make doc mandatory.
@@ -24,42 +24,52 @@ export declare class ChangeEvent<DocType extends Document = Document> extends Cu
  */
 export type ChangeEventListener<DocType extends Document> = (changeEvent: ChangeEvent<DocType>) => void;
 /**
- * Event dispatched by a subscription when documents enter the result set.
+ * Event dispatched by a LiveQuery when documents enter the result set.
  */
-export declare class EnterEvent<SubscriptionDocType extends Document> extends CustomEvent<Docs<SubscriptionDocType>> {
-    constructor(detail: Docs<SubscriptionDocType>);
+export declare class EnterEvent<LiveQueryDocType extends Document> extends CustomEvent<Docs<LiveQueryDocType>> {
+    constructor(detail: Docs<LiveQueryDocType>);
 }
 /**
  * Listener for enter events.
  */
 export type EnterEventListener<DocType extends Document> = (enterEvent: EnterEvent<DocType>) => void;
 /**
- * Event dispatched by a subscription when documents are updated.
+ * Event dispatched by a LiveQuery when documents are updated.
  */
-export declare class UpdateEvent<SubscriptionDocType extends Document> extends CustomEvent<Docs<SubscriptionDocType>> {
-    constructor(detail: Docs<SubscriptionDocType>);
+export declare class UpdateEvent<LiveQueryDocType extends Document> extends CustomEvent<Docs<LiveQueryDocType>> {
+    constructor(detail: Docs<LiveQueryDocType>);
 }
 /**
  * Listener for update events.
  */
 export type UpdateEventListener<DocType extends Document> = (updateEvent: UpdateEvent<DocType>) => void;
 /**
- * Event dispatched by a subscription when documents leave the result set.
+ * Event dispatched by a LiveQuery when documents leave the result set.
  */
-export declare class ExitEvent<SubscriptionDocType extends Document> extends CustomEvent<Docs<SubscriptionDocType>> {
-    constructor(detail: Docs<SubscriptionDocType>);
+export declare class ExitEvent<LiveQueryDocType extends Document> extends CustomEvent<Docs<LiveQueryDocType>> {
+    constructor(detail: Docs<LiveQueryDocType>);
 }
 /**
  * Listener for exit events.
  */
 export type ExitEventListener<DocType extends Document> = (exitEvent: ExitEvent<DocType>) => void;
 /**
- * Event dispatched by a subscription after any change occurs.
+ * Event dispatched by a LiveQuery after any change occurs.
  */
-export declare class AfterChangeEvent<SubscriptionDocType extends Document> extends CustomEvent<Docs<SubscriptionDocType>> {
-    constructor(detail: Docs<SubscriptionDocType>);
+export declare class AfterChangeEvent<LiveQueryDocType extends Document> extends CustomEvent<Docs<LiveQueryDocType>> {
+    constructor(detail: Docs<LiveQueryDocType>);
 }
 /**
  * Listener for afterchange events.
  */
 export type AfterChangeEventListener<DocType extends Document> = (afterChangeEvent: AfterChangeEvent<DocType>) => void;
+/**
+ * Event dispatched by a LiveDoc when its doc is set.
+ */
+export declare class SetEvent<LiveDocType extends Document> extends CustomEvent<(LiveDocType & Existing) | undefined> {
+    constructor(detail: (LiveDocType & Existing) | undefined);
+}
+/**
+ * Listener for SetEvents.
+ */
+export type SetEventListener<DocType extends Document> = (setEvent: SetEvent<DocType>) => void;
