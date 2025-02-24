@@ -23,7 +23,7 @@ export default {
     [
       "@semantic-release/release-notes-generator",
       {
-        preset: "convetionalcommits",
+        preset: "conventionalcommits",
       },
     ],
     [
