@@ -1,3 +1,15 @@
+## [2.0.0](https://github.com/jimbojw/heartdb/compare/v1.4.0...v2.0.0) (2025-02-24)
+
+### ⚠ BREAKING CHANGES
+
+* Fix spelling of conventionalcommits plugin.
+* Use conventional commits for analyzer and notes generator.
+
+### Continuous Integration
+
+* Fix spelling of conventionalcommits plugin. ([089e3a8](https://github.com/jimbojw/heartdb/commit/089e3a81d0c19822cc14a75b58d439834da280e2))
+* Use conventional commits for analyzer and notes generator. ([ec710ec](https://github.com/jimbojw/heartdb/commit/ec710ec76cf0665f7375cccd139caa1173863446))
+
 # [1.4.0](https://github.com/jimbojw/heartdb/compare/v1.3.0...v1.4.0) (2025-02-23)
 
 
