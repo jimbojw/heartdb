@@ -13,7 +13,7 @@ export default {
     rollupOptions: {
       // @see https://github.com/vitejs/vite/discussions/2400#discussioncomment-435489
       optimizeDeps: {
-        allowNodeBuiltins: ["pouchdb-browser", "pouchdb-utils"],
+        allowNodeBuiltins: ["pouchdb-browser"],
       },
     },
   },

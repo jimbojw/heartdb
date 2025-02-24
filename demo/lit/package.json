@@ -14,8 +14,7 @@
     "heartdb": "file:../../",
     "lit": "^3.2.1",
     "pouchdb-adapter-indexeddb": "9.0.0",
-    "pouchdb-browser": "9.0.0",
-    "pouchdb-utils": "9.0.0"
+    "pouchdb-browser": "9.0.0"
   },
   "devDependencies": {
     "@types/pouchdb-adapter-indexeddb": "9.0.0",
