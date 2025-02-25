@@ -96,4 +96,12 @@ export class CloseableEventTarget extends EventTarget {
       this.closed = true;
     }
   }
+
+  /**
+   * Register an event listener for close events.
+   * @param callback Event listener callback function.
+   */
+  onClose(callback: EventListener): () => void {
+    return this.addEventListener("close", callback);
+  }
 }

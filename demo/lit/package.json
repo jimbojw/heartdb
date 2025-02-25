@@ -1,0 +1,25 @@
+{
+  "name": "heartdb-demo-lit",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lit/context": "1.1.4",
+    "events": "3.3.0",
+    "heartdb": "file:../../",
+    "lit": "^3.2.1",
+    "pouchdb-adapter-indexeddb": "9.0.0",
+    "pouchdb-browser": "9.0.0"
+  },
+  "devDependencies": {
+    "@types/pouchdb-adapter-indexeddb": "9.0.0",
+    "@types/pouchdb-browser": "6.1.5",
+    "typescript": "~5.7.2",
+    "vite": "^6.1.0"
+  }
+}

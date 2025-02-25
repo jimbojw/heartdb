@@ -302,13 +302,11 @@ export class HeartDB<
    * @returns A new LiveQuery instance bound to this HeartDB instance.
    * @template LiveQueryDocType Type of documents in the subscription.
    */
-  async liveQuery<LiveQueryDocType extends DocType = DocType>(
+  liveQuery<LiveQueryDocType extends DocType = DocType>(
     query?: PouchDB.Find.FindRequest<LiveQueryDocType>,
-  ): Promise<LiveQuery<DocType, LiveQueryDocType>> {
+  ): LiveQuery<DocType, LiveQueryDocType> {
     const liveQuery = new LiveQuery<DocType, LiveQueryDocType>(this);
-    if (query) {
-      await liveQuery.setQuery(query);
-    }
+    liveQuery.setQuery(query);
     return liveQuery;
   }
 
