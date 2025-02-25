@@ -4,7 +4,6 @@
 /**
  * @fileoverview HeartDB.
  */
-import { HeartDB } from "./heartdb";
-import { LiveDoc } from "./live-doc";
-import { LiveQuery } from "./live-query";
-export { HeartDB, LiveDoc, LiveQuery };
+export * from "./heartdb";
+export * from "./live-doc";
+export * from "./live-query";

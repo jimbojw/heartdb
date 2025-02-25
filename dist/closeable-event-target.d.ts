@@ -44,4 +44,9 @@ export declare class CloseableEventTarget extends EventTarget {
      * further listeners from being added.
      */
     close(): void;
+    /**
+     * Register an event listener for close events.
+     * @param callback Event listener callback function.
+     */
+    onClose(callback: EventListener): () => void;
 }

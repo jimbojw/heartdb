@@ -111,6 +111,7 @@ export class LiveQuery extends CloseableEventTarget {
                 this.processDocs([], true);
                 return;
             }
+            // Make repeated requests until all existing matching docs have been found.
             let done = false;
             let requestCount = 0;
             let skip = (_b = query.skip) !== null && _b !== void 0 ? _b : 0;

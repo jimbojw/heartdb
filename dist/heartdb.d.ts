@@ -95,7 +95,7 @@ export declare class HeartDB<DocType extends Document = Document> extends Closea
      * @returns A new LiveQuery instance bound to this HeartDB instance.
      * @template LiveQueryDocType Type of documents in the subscription.
      */
-    liveQuery<LiveQueryDocType extends DocType = DocType>(query?: PouchDB.Find.FindRequest<LiveQueryDocType>): Promise<LiveQuery<DocType, LiveQueryDocType>>;
+    liveQuery<LiveQueryDocType extends DocType = DocType>(query?: PouchDB.Find.FindRequest<LiveQueryDocType>): LiveQuery<DocType, LiveQueryDocType>;
     /**
      * Create a new LiveDoc instance following the provided id.
      * @param docId Id of document to follow.

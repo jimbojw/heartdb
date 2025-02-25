@@ -224,13 +224,9 @@ export class HeartDB extends CloseableEventTarget {
      * @template LiveQueryDocType Type of documents in the subscription.
      */
     liveQuery(query) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const liveQuery = new LiveQuery(this);
-            if (query) {
-                yield liveQuery.setQuery(query);
-            }
-            return liveQuery;
-        });
+        const liveQuery = new LiveQuery(this);
+        liveQuery.setQuery(query);
+        return liveQuery;
     }
     /**
      * Create a new LiveDoc instance following the provided id.

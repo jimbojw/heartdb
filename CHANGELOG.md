@@ -1,3 +1,17 @@
+## [3.0.0](https://github.com/jimbojw/heartdb/compare/v2.0.0...v3.0.0) (2025-02-25)
+
+### ⚠ BREAKING CHANGES
+
+* Remove async from HeartDB::liveQuery() so that it returns immediately.
+
+### Features
+
+* Expose 'Existing' type on heartdb package. ([bc5d15d](https://github.com/jimbojw/heartdb/commit/bc5d15d47e6f147cd285789daf128747ab44b1c1))
+
+### Bug Fixes
+
+* Remove async from HeartDB::liveQuery() so that it returns immediately. ([5e49b06](https://github.com/jimbojw/heartdb/commit/5e49b06a0c7602eb982c553e987786dffc7c910c))
+
 ## [2.0.0](https://github.com/jimbojw/heartdb/compare/v1.4.0...v2.0.0) (2025-02-24)
 
 ### ⚠ BREAKING CHANGES
