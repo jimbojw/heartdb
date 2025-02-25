@@ -15,10 +15,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // Internal dependencies.
 import { ChangeEvent, ChangesResponseChange } from "../src/events";
 import { HeartDB } from "../src/heartdb";
-import { Document } from "../src/types";
+import { LiveQuery } from "../src/live-query";
+import type { Document } from "../src/types";
 
 // Test dependencies.
-import { LiveQuery } from "../src";
 import { TestDoc } from "./test-docs";
 
 // Register memory adapter.
@@ -315,22 +315,22 @@ describe("HeartDB", () => {
   });
 
   describe("liveQuery()", () => {
-    it("should create a LiveQuery instance", async () => {
+    it("should create a LiveQuery instance", () => {
       const heartDb = new HeartDB(
         new PouchDB("TEST_liveQuery", { adapter: "memory" }),
       );
-      const liveQuery = await heartDb.liveQuery();
+      const liveQuery = heartDb.liveQuery();
       expect(liveQuery).toBeDefined();
       expect(liveQuery).toBeInstanceOf(LiveQuery);
       heartDb.close();
     });
 
-    it("should pass optional query", async () => {
+    it("should pass optional query", () => {
       const heartDb = new HeartDB(
         new PouchDB("TEST_liveQuery", { adapter: "memory" }),
       );
       const query = { selector: { testField: "test value" } };
-      const liveQuery = await heartDb.liveQuery(query);
+      const liveQuery = heartDb.liveQuery(query);
       expect(liveQuery).toBeDefined();
       expect(liveQuery).toBeInstanceOf(LiveQuery);
       expect(liveQuery.query).toBe(query);

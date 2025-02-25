@@ -9,4 +9,4 @@
 export * from "./heartdb";
 export * from "./live-doc";
 export * from "./live-query";
-export { Docs, Document } from "./types";
+export { Docs, Document, Existing } from "./types";
