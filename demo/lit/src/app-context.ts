@@ -13,6 +13,7 @@ import PouchDB from "pouchdb-browser";
 
 // Internal dependencies.
 import { HeartDB } from "heartdb";
+import { Task } from "./types";
 
 PouchDB.plugin(PouchDBAdapterIndexedDBPlugin);
 
@@ -20,7 +21,7 @@ PouchDB.plugin(PouchDBAdapterIndexedDBPlugin);
  * @returns Initialized AppContext object.
  */
 export function makeAppContext() {
-  const pouchDb = new PouchDB("HEARTDB_DEMO", { adapter: "indexeddb" });
+  const pouchDb = new PouchDB<Task>("HEARTDB_DEMO", { adapter: "indexeddb" });
 
   const heartDb = new HeartDB(pouchDb);
 

@@ -14,6 +14,10 @@ import { customElement } from "lit/decorators.js";
 // Internal dependencies.
 import { appContext, makeAppContext } from "./app-context";
 
+// Internal elements.
+import "./create-task-form";
+import "./task-list";
+
 declare global {
   interface HTMLElementTagNameMap {
     "hdb-demo-app": DemoAppElement;
@@ -22,9 +26,6 @@ declare global {
 
 /**
  * HeartDB Lit demo application element.
- *
- * @slot - This element has a slot
- * @csspart button - The button
  */
 @customElement("hdb-demo-app")
 export class DemoAppElement extends LitElement {
@@ -33,14 +34,45 @@ export class DemoAppElement extends LitElement {
 
   static styles = css`
     :host {
-      display: flex;
-      flex-direction: column;
       margin: 0 auto;
       max-width: 800px;
+    }
+
+    button {
+      cursor: pointer;
     }
   `;
 
   render() {
-    return html` <h1>HeartDB Lit Demo App</h1> `;
+    const handleReset = () => {
+      this.appContext.heartDb.pouchDb.destroy();
+      window.location.reload();
+    };
+
+    return html`
+      <h1>HeartDB Lit Demo App</h1>
+      <main>
+        <p>
+          Simple task manager application using HeartDB for reactive, persistent
+          storage.
+        </p>
+        <section>
+          <h2>Create a new task</h2>
+          <hdb-create-task-form></hdb-create-task-form>
+        </section>
+        <section>
+          <h2>List of open Tasks</h2>
+          <hdb-task-list status="open"></hdb-task-list>
+        </section>
+        <section>
+          <h2>List of closed Tasks</h2>
+          <hdb-task-list status="closed"></hdb-task-list>
+        </section>
+        <section>
+          <h2>Reset</h2>
+          <button @click=${handleReset}>Destroy PouchDB and reload</button>
+        </section>
+      </main>
+    `;
   }
 }
